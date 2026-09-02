@@ -3,14 +3,13 @@ const path = require("path");
 const { GoogleGenAI } = require("@google/genai");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
 
-app.use(express.json());
-
+app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
@@ -18,6 +17,11 @@ app.get("/", (req, res) => {
         path.join(__dirname, "public", "index.html")
     );
 });
+
+
+// =========================
+// CHAT
+// =========================
 
 app.post("/api/chat", async (req, res) => {
     try {
@@ -68,7 +72,7 @@ Hãy trả lời tin nhắn cuối cùng của người dùng.
         });
 
     } catch (error) {
-        console.error("GEMINI ERROR:", error);
+        console.error("GEMINI CHAT ERROR:", error);
 
         res.status(500).json({
             error:
@@ -77,6 +81,61 @@ Hãy trả lời tin nhắn cuối cùng của người dùng.
         });
     }
 });
+
+
+// =========================
+// IMAGE GENERATION
+// =========================
+
+app.post("/api/image", async (req, res) => {
+    try {
+        const prompt = req.body.prompt;
+
+        if (!prompt || !prompt.trim()) {
+            return res.status(400).json({
+                error: "Vui lòng nhập mô tả hình ảnh."
+            });
+        }
+
+        console.log("IMAGE PROMPT:", prompt);
+
+        const interaction = await ai.interactions.create({
+            model: "gemini-3.1-flash-image",
+            input: prompt,
+            response_format: {
+                type: "image",
+                aspect_ratio: "1:1",
+                image_size: "1K"
+            }
+        });
+
+        if (!interaction.output_image) {
+            return res.status(500).json({
+                error: "Gemini không trả về hình ảnh."
+            });
+        }
+
+        const imageBase64 = interaction.output_image.data;
+
+        res.json({
+            image: `data:image/png;base64,${imageBase64}`
+        });
+
+    } catch (error) {
+        console.error("GEMINI IMAGE ERROR:", error);
+
+        res.status(500).json({
+            error:
+                error.message ||
+                "Không thể tạo hình ảnh."
+        });
+    }
+});
+
+
+// =========================
+// START SERVER
+// =========================
 
 app.listen(PORT, () => {
     console.log(
