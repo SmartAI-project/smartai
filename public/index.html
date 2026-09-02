@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartAI</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --blue: #2563eb;
+    --blue-dark: #1d4ed8;
+    --blue-light: #eff6ff;
+    --bg: #f7f9fc;
+    --white: #fff;
+    --text: #172033;
+    --muted: #718096;
+    --border: #e4e9f0;
+}
+
+body {
+    font-family: Inter, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 270px;
+    height: 100vh;
+    background: white;
+    border-right: 1px solid var(--border);
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 4px 8px 22px;
+}
+
+.logo {
+    width: 43px;
+    height: 43px;
+    background: var(--blue);
+    color: white;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+    font-weight: 800;
+    box-shadow: 0 10px 25px rgba(37,99,235,.22);
+}
+
+.logo-title {
+    font-size: 20px;
+    font-weight: 750;
+}
+
+.logo-sub {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.new-chat {
+    width: 100%;
+    border: none;
+    background: var(--blue);
+    color: white;
+    padding: 13px;
+    border-radius: 13px;
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.new-chat:hover {
+    background: var(--blue-dark);
+}
+
+.history-label {
+    margin: 25px 10px 9px;
+    font-size: 11px;
+    color: #8b96a7;
+    font-weight: 750;
+    text-transform: uppercase;
+}
+
+.history {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.history-item {
+    padding: 11px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #59677a;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item:hover {
+    background: var(--blue-light);
+    color: var(--blue);
+}
+
+.sidebar-bottom {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+
+.creator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+}
+
+.creator-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: var(--blue-light);
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+/* MAIN */
+.main {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.topbar {
+    height: 64px;
+    background: rgba(255,255,255,.95);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 22px;
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+}
+
+.top-actions {
+    margin-left: auto;
+}
+
+.top-button {
+    border: none;
+    background: transparent;
+    padding: 8px 11px;
+    border-radius: 9px;
+    color: #68778a;
+    cursor: pointer;
+}
+
+.top-button:hover {
+    background: #f0f3f7;
+}
+
+/* CHAT */
+.chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 40px 20px 180px;
+}
+
+.chat-inner {
+    width: 100%;
+    max-width: 900px;
+    margin: auto;
+}
+
+/* WELCOME */
+.welcome {
+    text-align: center;
+    margin-top: 40px;
+}
+
+.welcome-logo {
+    width: 74px;
+    height: 74px;
+    margin: auto;
+    border-radius: 23px;
+    background: var(--blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 800;
+    box-shadow: 0 16px 35px rgba(37,99,235,.2);
+}
+
+.welcome h1 {
+    margin-top: 20px;
+    font-size: 31px;
+    letter-spacing: -.8px;
+}
+
+.welcome p {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 34px;
+}
+
+.card {
+    border: 1px solid var(--border);
+    background: white;
+    border-radius: 15px;
+    padding: 17px;
+    text-align: left;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    border-color: #9bb9ef;
+    box-shadow: 0 10px 28px rgba(30,60,120,.07);
+}
+
+.card strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.card span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* MESSAGE */
+.message {
+    display: flex;
+    gap: 13px;
+    margin-bottom: 28px;
+    animation: fadeIn .18s ease;
+}
+
+.message.user {
+    flex-direction: row-reverse;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.ai-avatar {
+    background: var(--blue);
+    color: white;
+}
+
+.user-avatar {
+    background: #e8eef7;
+    color: #59677a;
+}
+
+.message-content {
+    max-width: 80%;
+    font-size: 15px;
+    line-height: 1.68;
+}
+
+.user .message-content {
+    background: var(--blue);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 17px 17px 4px 17px;
+}
+
+/* CODE */
+.code {
+    margin: 13px 0;
+    background: #111827;
+    color: #e7edf7;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.code-header {
+    height: 35px;
+    background: #192335;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    font-size: 11px;
+    color: #aab5c6;
+}
+
+.code-copy {
+    border: none;
+    background: transparent;
+    color: #b9c4d3;
+    cursor: pointer;
+}
+
+.code pre {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+/* IMAGE */
+.ai-image {
+    display: block;
+    max-width: 520px;
+    width: 100%;
+    margin-top: 12px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 32px rgba(20,50,100,.12);
+}
+
+.image-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.image-button {
+    border: none;
+    background: var(--blue-light);
+    color: var(--blue);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* TYPING */
+.typing {
+    display: flex;
+    gap: 5px;
+    padding: 9px 0;
+}
+
+.typing span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #9ba6b5;
+    animation: typing 1.1s infinite;
+}
+
+.typing span:nth-child(2) {
+    animation-delay: .15s;
+}
+
+.typing span:nth-child(3) {
+    animation-delay: .3s;
+}
+
+@keyframes typing {
+    0%,60%,100% {
+        opacity: .3;
+        transform: translateY(0);
+    }
+    30% {
+        opacity: 1;
+        transform: translateY(-4px);
+    }
+}
+
+/* COMPOSER */
+.composer-area {
+    position: fixed;
+    left: 270px;
+    right: 0;
+    bottom: 0;
+    padding: 15px 20px 17px;
+    background: linear-gradient(transparent, var(--bg) 28%);
+}
+
+.composer {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 19px;
+    padding: 8px 8px 8px 16px;
+    display: flex;
+    align-items: flex-end;
+    box-shadow: 0 9px 30px rgba(20,50,100,.08);
+}
+
+.composer:focus-within {
+    border-color: #9bb9ef;
+}
+
+#input {
+    flex: 1;
+    min-height: 40px;
+    max-height: 150px;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 9px 0;
+    font-size: 15px;
+    color: var(--text);
+    line-height: 1.4;
+}
+
+#input::placeholder {
+    color: #9ba6b5;
+}
+
+.send {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 13px;
+    background: var(--blue);
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.send:hover {
+    background: var(--blue-dark);
+}
+
+.send:disabled {
+    background: #b7c3d6;
+}
+
+.tools {
+    max-width: 900px;
+    margin: 7px auto 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.tool {
+    border: none;
+    background: transparent;
+    color: #7c8898;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.tool:hover {
+    color: var(--blue);
+}
+
+.disclaimer {
+    text-align: center;
+    color: #9ba5b4;
+    font-size: 10px;
+}
+
+/* MOBILE */
+@media(max-width:760px) {
+    .sidebar {
+        position: fixed;
+        left: -285px;
+        top: 0;
+        z-index: 1000;
+        box-shadow: 10px 0 30px rgba(0,0,0,.1);
+        transition: .2s;
+    }
+
+    .sidebar.open {
+        left: 0;
+    }
+
+    .composer-area {
+        left: 0;
+    }
+
+    .chat {
+        padding: 28px 13px 170px;
+    }
+
+    .welcome {
+        margin-top: 15px;
+    }
+
+    .welcome h1 {
+        font-size: 25px;
+    }
+
+    .cards {
+        grid-template-columns: 1fr;
+    }
+
+    .message-content {
+        max-width: 86%;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+
+        <div class="logo-area">
+            <div class="logo">S</div>
+
+            <div>
+                <div class="logo-title">SmartAI</div>
+                <div class="logo-sub">
+                    Created by Nguyễn Hữu Tình
+                </div>
+            </div>
+        </div>
+
+        <button class="new-chat" onclick="newChat()">
+            + &nbsp; Cuộc trò chuyện mới
+        </button>
+
+        <div class="history-label">
+            Lịch sử trò chuyện
+        </div>
+
+        <div class="history" id="history"></div>
+
+        <div class="sidebar-bottom">
+            <div class="creator">
+
+                <div class="creator-avatar">N</div>
+
+                <div>
+                    <strong style="font-size:13px">
+                        Nguyễn Hữu Tình
+                    </strong>
+
+                    <div style="font-size:11px;color:#718096">
+                        Creator of SmartAI
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </aside>
+
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="status">
+                <span class="status-dot"></span>
+                SmartAI
+            </div>
+
+            <div class="top-actions">
+
+                <button class="top-button" onclick="newChat()">
+                    Chat mới
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <section class="chat" id="chat">
+
+            <div class="chat-inner">
+
+                <div class="welcome" id="welcome">
+
+                    <div class="welcome-logo">
+                        S
+                    </div>
+
+                    <h1>
+                        Mình có thể giúp gì cho bạn?
+                    </h1>
+
+                    <p>
+                        Mình là SmartAI, được tạo bởi Nguyễn Hữu Tình.
+                    </p>
+
+
+                    <div class="cards">
+
+                        <button class="card"
+                            onclick="useSuggestion('Giải thích vòng lặp for trong Python cho mình thật dễ hiểu')">
+
+                            <strong>
+                                Học lập trình
+                            </strong>
+
+                            <span>
+                                Giải thích code đơn giản
+                            </span>
+
+                        </button>
+
+
+                        <button class="card"
+                            onclick="useSuggestion('Viết cho mình một website HTML hiện đại')">
+
+                            <strong>
+                                Viết code
+                            </strong>
+
+                            <span>
+                                Tạo website hoàn chỉnh
+                            </span>
+
+                        </button>
+
+
+                        <button class="card"
+                            onclick="useSuggestion('Giúp mình học tiếng Anh')">
+
+                            <strong>
+                                Học tiếng Anh
+                            </strong>
+
+                            <span>
+                                Ngữ pháp và từ vựng
+                            </span>
+
+                        </button>
+
+
+                        <button class="card"
+                            onclick="useSuggestion('Tạo hình ảnh một chú mèo trắng đang ngồi trên mặt trăng')">
+
+                            <strong>
+                                Tạo hình ảnh
+                            </strong>
+
+                            <span>
+                                Mô tả hình ảnh bạn muốn
+                            </span>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div id="messages"></div>
+
+            </div>
+
+        </section>
+
+
+        <div class="composer-area">
+
+            <div class="composer">
+
+                <textarea
+                    id="input"
+                    rows="1"
+                    placeholder="Nhắn tin cho SmartAI..."
+                ></textarea>
+
+                <button
+                    class="send"
+                    id="send"
+                    onclick="sendMessage()"
+                >
+                    ↑
+                </button>
+
+            </div>
+
+
+            <div class="tools">
+
+                <button class="tool" onclick="imagePrompt()">
+                    Tạo hình ảnh
+                </button>
+
+                <div class="disclaimer">
+                    SmartAI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
+                </div>
+
+                <button class="tool" onclick="newChat()">
+                    Xóa chat
+                </button>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script>
+
+let conversation = [];
+let busy = false;
+
+const input = document.getElementById("input");
+const messages = document.getElementById("messages");
+const welcome = document.getElementById("welcome");
+const send = document.getElementById("send");
+const chat = document.getElementById("chat");
+const history = document.getElementById("history");
+
+
+// ===============================
+// LOAD CHAT
+// ===============================
+
+function loadChat() {
+
+    try {
+
+        const saved =
+            localStorage.getItem("smartai_history");
+
+        if (!saved) return;
+
+        conversation = JSON.parse(saved);
+
+        conversation.forEach(item => {
+
+            renderMessage(
+                item.role,
+                item.content,
+                false
+            );
+
+        });
+
+        if (conversation.length > 0) {
+
+            welcome.style.display = "none";
+            updateHistory();
+
+        }
+
+    } catch {
+
+        conversation = [];
+
+    }
+}
+
+loadChat();
+
+
+// ===============================
+// SAVE
+// ===============================
+
+function saveChat() {
+
+    localStorage.setItem(
+        "smartai_history",
+        JSON.stringify(conversation)
+    );
+
+}
+
+
+// ===============================
+// SEND
+// ===============================
+
+async function sendMessage() {
+
+    if (busy) return;
+
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    input.value = "";
+    resizeInput();
+
+    welcome.style.display = "none";
+
+    renderMessage(
+        "user",
+        text,
+        true
+    );
+
+    conversation.push({
+        role: "user",
+        content: text
+    });
+
+    saveChat();
+    updateHistory();
+
+    if (isImageRequest(text)) {
+
+        await generateImage(
+            cleanImagePrompt(text)
+        );
+
+        return;
+    }
+
+    await askAI();
+}
+
+
+// ===============================
+// CHAT AI
+// ===============================
+
+async function askAI() {
+
+    busy = true;
+    send.disabled = true;
+
+    const typing = showTyping();
+
+    try {
+
+        const response = await fetch(
+            "/api/chat",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    messages: conversation
+                })
+            }
+        );
+
+
+        const data = await response.json();
+
+        typing.remove();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Không thể kết nối SmartAI."
+            );
+
+        }
+
+
+        const answer = data.answer;
+
+        conversation.push({
+            role: "assistant",
+            content: answer
+        });
+
+        renderMessage(
+            "assistant",
+            answer,
+            true
+        );
+
+        saveChat();
+
+
+    } catch (error) {
+
+        typing.remove();
+
+        renderMessage(
+            "assistant",
+            "Mình xin lỗi, hiện tại không thể kết nối với máy chủ.\n\n" +
+            "Chi tiết: " +
+            error.message,
+            true
+        );
+
+    }
+
+    busy = false;
+    send.disabled = false;
+    input.focus();
+}
+
+
+// ===============================
+// RENDER
+// ===============================
+
+function renderMessage(role, text, scroll = true) {
+
+    const message =
+        document.createElement("div");
+
+    message.className =
+        "message " +
+        (role === "user" ? "user" : "ai");
+
+
+    const avatar =
+        document.createElement("div");
+
+    avatar.className =
+        "avatar " +
+        (role === "user"
+            ? "user-avatar"
+            : "ai-avatar");
+
+    avatar.textContent =
+        role === "user" ? "U" : "S";
+
+
+    const content =
+        document.createElement("div");
+
+    content.className =
+        "message-content";
+
+
+    if (role === "user") {
+
+        content.textContent = text;
+
+    } else {
+
+        content.innerHTML = markdown(text);
+
+    }
+
+
+    message.appendChild(avatar);
+    message.appendChild(content);
+
+    messages.appendChild(message);
+
+    if (scroll) scrollBottom();
+}
+
+
+// ===============================
+// MARKDOWN
+// ===============================
+
+function escapeHTML(text) {
+
+    return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+
+}
+
+
+function markdown(text) {
+
+    let html = escapeHTML(text);
+
+    const blocks = [];
+
+
+    html = html.replace(
+        /```(?:([a-zA-Z0-9_-]+))?\n?([\s\S]*?)```/g,
+        function(match, language, code) {
+
+            const id = blocks.length;
+
+            blocks.push(code.trim());
+
+            return `___CODE_${id}___`;
+        }
+    );
+
+
+    html = html.replace(
+        /\*\*(.*?)\*\*/g,
+        "<strong>$1</strong>"
+    );
+
+
+    html = html.replace(
+        /`([^`]+)`/g,
+        "<code style='background:#edf2f7;padding:2px 5px;border-radius:5px;'>$1</code>"
+    );
+
+
+    html = html.replace(/\n/g, "<br>");
+
+
+    blocks.forEach((code, index) => {
+
+        const codeHTML = `
+            <div class="code">
+
+                <div class="code-header">
+
+                    <span>CODE</span>
+
+                    <button
+                        class="code-copy"
+                        onclick="copyCode(this)"
+                    >
+                        Copy
+                    </button>
+
+                </div>
+
+                <pre><code>${code}</code></pre>
+
+            </div>
+        `;
+
+        html = html.replace(
+            `___CODE_${index}___`,
+            codeHTML
+        );
+
+    });
+
+
+    return html;
+}
+
+
+// ===============================
+// COPY
+// ===============================
+
+function copyCode(button) {
+
+    const code =
+        button
+            .closest(".code")
+            .querySelector("code")
+            .textContent;
+
+
+    navigator.clipboard
+        .writeText(code)
+        .then(() => {
+
+            button.textContent = "Đã copy";
+
+            setTimeout(() => {
+
+                button.textContent = "Copy";
+
+            }, 1200);
+
+        });
+}
+
+
+// ===============================
+// IMAGE DETECTION
+// ===============================
+
+function isImageRequest(text) {
+
+    const lower = text.toLowerCase();
+
+    const words = [
+        "tạo hình ảnh",
+        "tạo ảnh",
+        "tạo một bức ảnh",
+        "vẽ cho tôi",
+        "vẽ cho mình",
+        "vẽ một",
+        "generate image",
+        "generate a picture",
+        "draw an image"
+    ];
+
+    return words.some(
+        word => lower.includes(word)
+    );
+}
+
+
+function cleanImagePrompt(text) {
+
+    return text
+
+        .replace(/tạo hình ảnh/gi, "")
+        .replace(/tạo ảnh/gi, "")
+        .replace(/tạo một bức ảnh/gi, "")
+        .replace(/vẽ cho tôi/gi, "")
+        .replace(/vẽ cho mình/gi, "")
+        .replace(/vẽ một/gi, "")
+        .replace(/generate image/gi, "")
+        .replace(/generate a picture/gi, "")
+        .replace(/draw an image/gi, "")
+
+        .trim();
+}
+
+
+// ===============================
+// IMAGE BUTTON
+// ===============================
+
+function imagePrompt() {
+
+    const prompt =
+        window.prompt(
+            "Bạn muốn SmartAI tạo hình ảnh gì?"
+        );
+
+    if (!prompt) return;
+
+    welcome.style.display = "none";
+
+    renderMessage(
+        "user",
+        "Tạo hình ảnh: " + prompt,
+        true
+    );
+
+    generateImage(prompt);
+}
+
+
+// ===============================
+// GENERATE IMAGE
+// ===============================
+
+async function generateImage(prompt) {
+
+    if (!prompt) {
+
+        renderMessage(
+            "assistant",
+            "Bạn hãy mô tả hình ảnh muốn tạo nhé."
+        );
+
+        return;
+    }
+
+
+    const typing = showTyping();
+
+
+    try {
+
+        const response = await fetch(
+            "/api/image",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    prompt: prompt
+                })
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        typing.remove();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Không thể tạo ảnh."
+            );
+
+        }
+
+
+        showImage(
+            data.image,
+            prompt
+        );
+
+
+    } catch (error) {
+
+        typing.remove();
+
+        renderMessage(
+            "assistant",
+            "Mình chưa thể tạo ảnh lúc này.\n\n" +
+            error.message,
+            true
+        );
+
+    }
+}
+
+
+// ===============================
+// SHOW IMAGE
+// ===============================
+
+function showImage(url, prompt) {
+
+    const message =
+        document.createElement("div");
+
+    message.className =
+        "message ai";
+
+
+    const avatar =
+        document.createElement("div");
+
+    avatar.className =
+        "avatar ai-avatar";
+
+    avatar.textContent = "S";
+
+
+    const content =
+        document.createElement("div");
+
+    content.className =
+        "message-content";
+
+
+    const title =
+        document.createElement("div");
+
+    title.textContent =
+        "Mình đã tạo hình ảnh cho bạn:";
+
+
+    const img =
+        document.createElement("img");
+
+    img.className =
+        "ai-image";
+
+    img.src = url;
+    img.alt = prompt;
+
+
+    const buttons =
+        document.createElement("div");
+
+    buttons.className =
+        "image-buttons";
+
+
+    const open =
+        document.createElement("button");
+
+    open.className =
+        "image-button";
+
+    open.textContent =
+        "Mở ảnh";
+
+    open.onclick = () => {
+
+        window.open(
+            url,
+            "_blank"
+        );
+
+    };
+
+
+    buttons.appendChild(open);
+
+
+    content.appendChild(title);
+    content.appendChild(img);
+    content.appendChild(buttons);
+
+
+    message.appendChild(avatar);
+    message.appendChild(content);
+
+    messages.appendChild(message);
+
+    scrollBottom();
+}
+
+
+// ===============================
+// TYPING
+// ===============================
+
+function showTyping() {
+
+    const element =
+        document.createElement("div");
+
+    element.className =
+        "message ai";
+
+
+    element.innerHTML = `
+        <div class="avatar ai-avatar">
+            S
+        </div>
+
+        <div class="message-content">
+
+            <div class="typing">
+
+                <span></span>
+                <span></span>
+                <span></span>
+
+            </div>
+
+        </div>
+    `;
+
+
+    messages.appendChild(element);
+
+    scrollBottom();
+
+    return element;
+}
+
+
+// ===============================
+// HISTORY
+// ===============================
+
+function updateHistory() {
+
+    history.innerHTML = "";
+
+    conversation
+
+        .filter(
+            item => item.role === "user"
+        )
+
+        .slice(-12)
+
+        .reverse()
+
+        .forEach(item => {
+
+            const div =
+                document.createElement("div");
+
+            div.className =
+                "history-item";
+
+            div.textContent =
+                item.content;
+
+            div.onclick = () => {
+
+                input.value =
+                    item.content;
+
+                resizeInput();
+
+                input.focus();
+
+            };
+
+            history.appendChild(div);
+
+        });
+}
+
+
+// ===============================
+// NEW CHAT
+// ===============================
+
+function newChat() {
+
+    conversation = [];
+
+    messages.innerHTML = "";
+
+    welcome.style.display = "block";
+
+    localStorage.removeItem(
+        "smartai_history"
+    );
+
+    input.value = "";
+
+    resizeInput();
+
+    input.focus();
+}
+
+
+// ===============================
+// SUGGESTION
+// ===============================
+
+function useSuggestion(text) {
+
+    input.value = text;
+
+    resizeInput();
+
+    input.focus();
+}
+
+
+// ===============================
+// INPUT
+// ===============================
+
+input.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            sendMessage();
+
+        }
+
+    }
+);
+
+
+input.addEventListener(
+    "input",
+    resizeInput
+);
+
+
+function resizeInput() {
+
+    input.style.height = "auto";
+
+    input.style.height =
+        Math.min(
+            input.scrollHeight,
+            150
+        ) + "px";
+}
+
+
+// ===============================
+// SCROLL
+// ===============================
+
+function scrollBottom() {
+
+    setTimeout(() => {
+
+        chat.scrollTo({
+            top: chat.scrollHeight,
+            behavior: "smooth"
+        });
+
+    }, 30);
+}
+
+</script>
+
+</body>
+</html>
