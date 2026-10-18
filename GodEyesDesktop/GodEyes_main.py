@@ -3995,7 +3995,8 @@ class MainWindow(QMainWindow):
         if not hasattr(self,'camera_connection_label'): return
         if self.camera_source!='wifi_camera':
             self.camera_connection_label.setText('Use the selected computer camera.' if self.ui_language=='en' else 'Đang dùng camera trên máy tính.')
-        elif self.camera_host:            self.camera_connection_label.setText('Connected camera settings saved.' if self.ui_language=='en' else 'Đã lưu cấu hình camera đã kết nối.')
+        elif self.camera_host:
+            self.camera_connection_label.setText('Connected camera settings saved.' if self.ui_language=='en' else 'Đã lưu cấu hình camera đã kết nối.')
         else:
             self.camera_connection_label.setText('Not connected' if self.ui_language=='en' else 'Chưa kết nối')
 
@@ -4994,7 +4995,8 @@ class MainWindow(QMainWindow):
         interval_ms = int(round(1000.0 / max(1.0, min(120.0, fps))))
         interval_ms = max(8, min(66, interval_ms))
 
-        if interval_ms != self._rt_render_interval_ms:            self._rt_render_interval_ms = interval_ms
+        if interval_ms != self._rt_render_interval_ms:
+            self._rt_render_interval_ms = interval_ms
             try:
                 self.render_timer.setInterval(interval_ms)
             except Exception:
@@ -5993,7 +5995,8 @@ class FaceEnrollmentWindow(QMainWindow):
                 result = json.loads(response.read().decode('utf-8', errors='replace') or '{}')
             if not result.get('success'):
                 raise RuntimeError(str(result.get('detail') or 'Server không xác nhận đăng ký thành công.'))
-            QMessageBox.information(self, 'God Eyes', 'Đăng ký Face ID thành công. Ảnh vừa chụp đã được lưu làm ảnh hồ sơ học sinh.')            self.close()
+            QMessageBox.information(self, 'God Eyes', 'Đăng ký Face ID thành công. Ảnh vừa chụp đã được lưu làm ảnh hồ sơ học sinh.')
+            self.close()
         except urllib.error.HTTPError as exc:
             try:
                 detail = json.loads(exc.read().decode('utf-8', errors='replace')).get('detail', '')
