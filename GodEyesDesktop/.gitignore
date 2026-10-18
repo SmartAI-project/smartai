@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+*.spec
+*.log
+app/server_config.json
+app/assets/models/*.onnx
+!app/assets/models/.gitkeep

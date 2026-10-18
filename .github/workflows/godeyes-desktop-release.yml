@@ -1,0 +1,80 @@
+name: GodEyes Desktop CI and Public Windows Release
+
+on:
+  push:
+    branches: [godeyes-desktop-v0.15.0-public-release]
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: GodEyesDesktop
+
+jobs:
+  tests:
+    name: Linux syntax and regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: GodEyesDesktop/requirements.txt
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest numpy opencv-contrib-python
+      - name: Compile Python sources
+        run: python -m py_compile GodEyes_main.py app/main.py app/engine.py app/db.py app/server_client.py app/event_gates.py scripts/download_models.py scripts/smoke_test_models.py
+      - name: Run regression tests
+        run: python -m pytest -q
+
+  windows-build-and-release:
+    name: Build, verify, and publish GodEyes.exe
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: GodEyesDesktop/requirements.txt
+      - name: Install application dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+      - name: Run regression tests on Windows
+        run: python -m pytest -q
+      - name: Build the executable and smoke-test required models
+        shell: pwsh
+        run: .\build_godeyes.ps1
+      - name: Verify executable and calculate SHA-256
+        shell: pwsh
+        run: |
+          if (!(Test-Path '.\dist\GodEyes.exe')) { throw 'dist\GodEyes.exe was not created.' }
+          $hash = (Get-FileHash '.\dist\GodEyes.exe' -Algorithm SHA256).Hash.ToLower()
+          "$hash  GodEyes.exe" | Out-File -FilePath '.\dist\SHA256SUMS.txt' -Encoding ascii
+          Write-Host "SHA256: $hash"
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GodEyes-Windows-x64
+          path: |
+            GodEyesDesktop/dist/GodEyes.exe
+            GodEyesDesktop/dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish public GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.15.0-godeyes-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: GodEyes Desktop v0.15.0 (build ${{ github.run_number }})
+          generate_release_notes: true
+          files: |
+            GodEyesDesktop/dist/GodEyes.exe
+            GodEyesDesktop/dist/SHA256SUMS.txt
