@@ -1,4 +1,5 @@
 from pathlib import Path
+import copy
 import math
 import os
 import threading
@@ -2643,6 +2644,11 @@ class AIWorker(QThread):
         self.total_frames_received = 0
         self.total_inferences = 0
         self.last_frame_time = 0.0
+        # Keep only a short per-track window of candidate frames so an event uses
+        # the clearest recent view of the same identity, not a burst of random frames.
+        self._evidence_candidates = {}
+        self._evidence_candidate_window_seconds = 1.5
+        self._evidence_candidate_limit = 6
         self.camera.frame_ready.connect(self._receive_frame)
 
     def _receive_frame(self, frame):
@@ -2689,6 +2695,7 @@ class AIWorker(QThread):
             self.identity.reset()
             self.tracker.reset()
             self.behavior.reset()
+            self._evidence_candidates.clear()
         self.status.emit('IDENTITY RESET • scanning again')
 
     def lock_ids(self):
@@ -2861,6 +2868,91 @@ class AIWorker(QThread):
             ))
         return detections
 
+    @staticmethod
+    def _evidence_frame_quality(frame, track):
+        """Score visible face-frame clarity/exposure; higher means a better candidate."""
+        if frame is None or getattr(track, 'face', None) is None:
+            return 0.0
+        if not bool(getattr(track, 'visible', False)) or int(getattr(track, 'missed', 0) or 0) != 0:
+            return 0.0
+        if not bool(getattr(track, 'face_feature_current', False)):
+            return 0.0
+        try:
+            fx, fy, fw, fh = [int(round(float(v))) for v in track.face[:4]]
+            height, width = frame.shape[:2]
+            x0, y0 = max(0, fx), max(0, fy)
+            x1, y1 = min(width, fx + fw), min(height, fy + fh)
+            if x1 - x0 < 18 or y1 - y0 < 18:
+                return 0.0
+            crop = frame[y0:y1, x0:x1]
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+            sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+            brightness = float(np.mean(gray))
+            if not math.isfinite(sharpness) or not math.isfinite(brightness):
+                return 0.0
+            exposure_factor = 1.0 if 22.0 <= brightness <= 232.0 else 0.35
+            size_factor = min(1.0, min(crop.shape[:2]) / 72.0)
+            return max(0.0, sharpness * exposure_factor * size_factor)
+        except Exception:
+            return 0.0
+
+    def _remember_evidence_candidate(self, frame, track, sid):
+        if not bool(getattr(track, 'visible', False)) or int(getattr(track, 'missed', 0) or 0) != 0:
+            return
+        quality = self._evidence_frame_quality(frame, track)
+        if quality <= 0.0:
+            return
+        stamp = time.monotonic()
+        key = (int(getattr(track, 'track_id', 0) or 0), str(sid or 'IDENTITY UNCERTAIN'))
+        candidates = [
+            item for item in self._evidence_candidates.get(key, [])
+            if stamp - float(item['stamp']) <= self._evidence_candidate_window_seconds
+        ]
+        # The frame is immutable for the remainder of this inference. Store a
+        # shallow track snapshot so later tracker updates cannot move its box.
+        candidates.append({
+            'stamp': stamp,
+            'quality': quality,
+            'frame': frame,
+            'track': copy.copy(track),
+        })
+        self._evidence_candidates[key] = candidates[-self._evidence_candidate_limit:]
+
+    def _prune_evidence_candidates(self, now=None):
+        now = time.monotonic() if now is None else float(now)
+        for key, candidates in list(self._evidence_candidates.items()):
+            fresh = [
+                item for item in candidates
+                if now - float(item['stamp']) <= self._evidence_candidate_window_seconds
+            ]
+            if fresh:
+                self._evidence_candidates[key] = fresh[-self._evidence_candidate_limit:]
+            else:
+                self._evidence_candidates.pop(key, None)
+
+    @staticmethod
+    def _best_evidence_candidate(candidates, now=None, window_seconds=1.5):
+        """Choose the sharpest recent frame; use recency to break quality ties."""
+        now = time.monotonic() if now is None else float(now)
+        fresh = [
+            item for item in (candidates or [])
+            if now - float(item.get('stamp', 0.0)) <= float(window_seconds)
+        ]
+        if not fresh:
+            return None
+        return max(fresh, key=lambda item: (float(item.get('quality', 0.0)), float(item.get('stamp', 0.0))))
+
+    def _evidence_snapshot_for_event(self, frame, track, sid):
+        key = (int(getattr(track, 'track_id', 0) or 0), str(sid or 'IDENTITY UNCERTAIN'))
+        candidate = self._best_evidence_candidate(
+            self._evidence_candidates.get(key, []),
+            now=time.monotonic(),
+            window_seconds=self._evidence_candidate_window_seconds,
+        )
+        if candidate is None:
+            return frame, track
+        return candidate['frame'], candidate['track']
+
     def _process_once(self, frame):
         if self.vision is None:
             self._emit_status('LOADING YOLO PERSON DETECTOR…', 1.0)
@@ -2891,6 +2983,7 @@ class AIWorker(QThread):
                 for item in track_objects
             }
         frame_size = (frame.shape[1], frame.shape[0])
+        self._prune_evidence_candidates()
         payload = []
         active_student_ids = set()
         now = time.time()
@@ -2905,6 +2998,8 @@ class AIWorker(QThread):
             else:
                 display_score = identity_score
             payload.append(self._payload_for_track(track, sid, display_score))
+            if track.visible and track.confirmed:
+                self._remember_evidence_candidate(frame, track, sid)
             if track.visible and sid not in ('IDENTITY UNCERTAIN',) and track.confirmed:
                 active_student_ids.add(sid)
             is_server_identity = bool(self.identity.server_roster and self.identity.student_id_for_label(sid) > 0)
@@ -2926,7 +3021,8 @@ class AIWorker(QThread):
                     else:
                         emitted_sid = sid
                         emitted_assessment = assessment
-                    evidence = self._draw_evidence(frame, track, emitted_sid, event_type, confidence)
+                    evidence_frame, evidence_track = self._evidence_snapshot_for_event(frame, track, emitted_sid)
+                    evidence = self._draw_evidence(evidence_frame, evidence_track, emitted_sid, event_type, confidence)
                     self.event_ready.emit(emitted_sid, event_type, float(confidence), emitted_assessment, evidence)
 
         self.total_inferences += 1
