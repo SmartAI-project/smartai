@@ -174,7 +174,7 @@ def test_face_loss_alone_never_triggers_sleep():
 def test_evidence_selection_prefers_sharpest_recent_frame_and_expires_old_frames():
     worker_cls = engine.AIWorker
     candidates = [
-        {"stamp": 9.2, "quality": 400.0, "frame": "expired-sharp", "track": "old"},
+        {"stamp": 8.8, "quality": 400.0, "frame": "expired-sharp", "track": "old"},
         {"stamp": 9.7, "quality": 80.0, "frame": "recent-soft", "track": "soft"},
         {"stamp": 9.9, "quality": 140.0, "frame": "recent-sharp", "track": "sharp"},
     ]
@@ -200,6 +200,14 @@ def test_evidence_quality_prefers_in_focus_face_region():
     sharp_score = engine.AIWorker._evidence_frame_quality(sharp, FaceTrack())
     blur_score = engine.AIWorker._evidence_frame_quality(blurred, FaceTrack())
     assert sharp_score > blur_score
+
+
+def test_ai_worker_rejects_missing_or_stale_camera_frames():
+    is_fresh = engine.AIWorker._is_frame_fresh
+    assert not is_fresh(0.0, now=10.0)
+    assert is_fresh(9.0, now=10.0, max_age=2.5)
+    assert not is_fresh(7.4, now=10.0, max_age=2.5)
+    assert not is_fresh(11.0, now=10.0, max_age=2.5)
 
 def test_reset_clears_track_temporal_state():
     be = BehaviorEngine()
