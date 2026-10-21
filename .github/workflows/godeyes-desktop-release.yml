@@ -2,7 +2,7 @@ name: GodEyes Desktop CI and Public Windows Release
 
 on:
   push:
-    branches: [godeyes-desktop-v0.15.0-public-release]
+    branches: [godeyes-desktop-test-v0.15.1]
 
 permissions:
   contents: write
@@ -71,10 +71,12 @@ jobs:
       - name: Publish public GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.15.0-godeyes-${{ github.run_number }}
+          tag_name: v0.15.1-godeyes-test-${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: GodEyes Desktop v0.15.0 (build ${{ github.run_number }})
+          name: GodEyes Desktop v0.15.1 TEST (build ${{ github.run_number }})
           generate_release_notes: true
+          prerelease: true
+          make_latest: false
           files: |
             GodEyesDesktop/dist/GodEyes.exe
             GodEyesDesktop/dist/SHA256SUMS.txt
