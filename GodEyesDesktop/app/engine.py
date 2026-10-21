@@ -773,6 +773,8 @@ class IdentityLock:
         self.track_to_student = {}
         self.student_profiles = {}
         self.student_to_track = {}
+        # New identities need temporally consistent face matches before assignment.
+        self.pending_face_matches = {}
         self.next_student = 1
 
         # Legacy/local track-reidentification settings.
@@ -846,6 +848,7 @@ class IdentityLock:
         self.track_to_student.clear()
         self.student_profiles.clear()
         self.student_to_track.clear()
+        self.pending_face_matches.clear()
 
     def student_id_for_label(self, label):
         profile = self.server_roster.get(str(label))
@@ -892,6 +895,7 @@ class IdentityLock:
         self.track_to_student.clear()
         self.student_profiles.clear()
         self.student_to_track.clear()
+        self.pending_face_matches.clear()
         self.next_student = 1
         now = time.time()
 
@@ -1297,6 +1301,27 @@ class IdentityLock:
             self.student_to_track[sid] = int(track.track_id)
         return sid, float(score)
 
+    def _confirm_new_face_match(self, track_id, label, score, threshold):
+        """Require the same fresh Face ID on 3 of the last 5 frames within 1.5 seconds."""
+        now = time.monotonic()
+        history_by_track = getattr(self, 'pending_face_matches', None)
+        if not isinstance(history_by_track, dict):
+            history_by_track = {}
+            self.pending_face_matches = history_by_track
+        recent = [
+            (stamp, prior_label, prior_score)
+            for stamp, prior_label, prior_score in history_by_track.get(int(track_id), [])
+            if now - float(stamp) <= 1.5
+        ]
+        recent.append((now, str(label), float(score)))
+        recent = recent[-5:]
+        history_by_track[int(track_id)] = recent
+        agreeing = [
+            sample for sample in recent
+            if sample[1] == str(label) and sample[2] >= float(threshold)
+        ]
+        return len(agreeing) >= 3
+
     def resolve(self, track, frame_size=None):
         # V22: same-track lock persists through head turns/no-face intervals, but
         # sudden tracker jumps and confident conflicting Face IDs are never named.
@@ -1358,6 +1383,9 @@ class IdentityLock:
             best_label, best_score, second_score = self._v22_best_server_match(track)
             if (best_label is not None and best_score >= threshold
                     and (best_score - max(-1.0, second_score)) >= margin):
+                if not self._confirm_new_face_match(track_id, best_label, best_score, threshold):
+                    return 'IDENTITY UNCERTAIN', max(0.0, min(1.0, best_score))
+                self.pending_face_matches.pop(track_id, None)
                 old_tid = (getattr(self, 'student_to_track', {}) or {}).get(best_label)
                 status = (getattr(self, 'active_track_status', {}) or {}).get(old_tid, {}) or {}
                 if old_tid is not None and int(old_tid) != track_id and status.get('visible') and status.get('confirmed') and not status.get('missed', 0):
@@ -1369,6 +1397,8 @@ class IdentityLock:
                         track_map.pop(old_tid, None)
                     self._refresh_profile(best_label, track, frame_size, identity_source='FACE_MATCH_V22')
                 return best_label, max(0.0, min(1.0, best_score))
+            # A failed fresh-frame match breaks the confirmation run; never reuse an old vote.
+            self.pending_face_matches.pop(track_id, None)
             # Face was detected but did not match: no appearance-only identity transfer.
             return 'IDENTITY UNCERTAIN', max(0.0, min(1.0, best_score if best_label is not None else 0.0))
 
@@ -1393,6 +1423,7 @@ class IdentityLock:
         self.track_to_student.clear()
         self.student_profiles.clear()
         self.student_to_track.clear()
+        self.pending_face_matches.clear()
         self.next_student = 1
 
 class SmartVision:
@@ -2708,14 +2739,36 @@ class AIWorker(QThread):
             label = f'{sid} • {event_type.replace("_", " ").upper()}'
         if confidence is not None:
             label = f'{label} • {confidence * 100:.0f}%'
-        top = max(32, y)
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        scale = 0.50
-        thickness = 2
-        (tw, th), _ = cv2.getTextSize(label, font, scale, thickness)
-        right = min(image.shape[1], x + tw + 16)
-        cv2.rectangle(image, (x, top - 30), (right, top), pen, -1)
-        cv2.putText(image, label, (x + 7, top - 9), font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
+        # OpenCV Hershey fonts do not support Vietnamese diacritics. Render labels
+        # with Segoe UI and elide to the image bounds to avoid clipping long names.
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QImage, QPainter, QFont, QColor, QPen, QFontMetrics
+        top = max(30, min(image.shape[0], y))
+        label_font = QFont('Segoe UI', 11, QFont.Weight.DemiBold)
+        metrics = QFontMetrics(label_font)
+        max_width = max(1, image.shape[1] - max(0, min(x, image.shape[1] - 1)))
+        label_width = max(1, min(max_width, max(180, metrics.horizontalAdvance(label) + 16)))
+        label_left = max(0, min(x, image.shape[1] - label_width))
+        label_top = max(0, top - 30)
+        label_rect = QRect(label_left, label_top, label_width, max(1, top - label_top))
+        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        qimage = QImage(rgb.data, int(rgb.shape[1]), int(rgb.shape[0]), int(rgb.strides[0]), QImage.Format.Format_RGB888).copy()
+        painter = QPainter(qimage)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+        painter.fillRect(label_rect, QColor(pen[2], pen[1], pen[0]))
+        painter.setPen(QPen(QColor(255, 255, 255), 1))
+        painter.drawRect(label_rect.adjusted(0, 0, -1, -1))
+        painter.setFont(label_font)
+        painter.setPen(QColor(255, 255, 255))
+        text_rect = label_rect.adjusted(7, 0, -6, 0)
+        visible_label = QFontMetrics(label_font).elidedText(label, Qt.TextElideMode.ElideRight, max(1, text_rect.width()))
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, visible_label)
+        painter.end()
+        rgb_qimage = qimage.convertToFormat(QImage.Format.Format_RGB888)
+        rgb_ptr = rgb_qimage.constBits()
+        rgb_raw = np.frombuffer(rgb_ptr, dtype=np.uint8, count=rgb_qimage.sizeInBytes())
+        rgb_array = rgb_raw.reshape(rgb_qimage.height(), rgb_qimage.bytesPerLine())[:, :rgb_qimage.width() * 3].reshape(rgb_qimage.height(), rgb_qimage.width(), 3).copy()
+        image = cv2.cvtColor(rgb_array, cv2.COLOR_RGB2BGR)
         yaw = float(getattr(track, 'head_yaw_deg', 0.0))
         mouth = float(getattr(track, 'mouth_activity', 0.0))
         yaw_measured = bool(getattr(track, 'head_yaw_measured', False))
