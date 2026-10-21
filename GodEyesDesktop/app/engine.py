@@ -2742,7 +2742,7 @@ class AIWorker(QThread):
         # OpenCV Hershey fonts do not support Vietnamese diacritics. Render labels
         # with Segoe UI and elide to the image bounds to avoid clipping long names.
         from PySide6.QtCore import Qt
-        from PySide6.QtGui import QImage, QPainter, QFont, QColor, QPen, QFontMetrics
+        from PySide6.QtGui import QImage, QPainter, QFont, QColor, QPen, QFontMetrics, QRect
         top = max(30, min(image.shape[0], y))
         label_font = QFont('Segoe UI', 11, QFont.Weight.DemiBold)
         metrics = QFontMetrics(label_font)
