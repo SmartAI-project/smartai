@@ -3051,6 +3051,7 @@ class AIWorker(QThread):
 
     def run(self):
         self._stop_event.clear()
+        stale_frame_reset = False
         self._emit_status('AI THREAD STARTED', 0.0)
         try:
             while not self._stop_event.is_set():
@@ -3071,9 +3072,17 @@ class AIWorker(QThread):
                     time.sleep(0.05)
                     continue
                 if not self._is_frame_fresh(last_frame_time):
+                    # Reset temporal behavior state once per stale-camera interval.
+                    # Time spent without fresh pixels must not count toward a turn/sleep cue.
+                    if not stale_frame_reset:
+                        with self._state_lock:
+                            self.behavior.reset()
+                        self._evidence_candidates.clear()
+                        stale_frame_reset = True
                     self._emit_status('AI WAITING • camera frame is stale', 1.0)
                     time.sleep(0.05)
                     continue
+                stale_frame_reset = False
                 try:
                     self._process_once(frame)
                 except Exception as exc:
