@@ -170,6 +170,37 @@ def test_face_loss_alone_never_triggers_sleep():
     assert not any(e[0] == "OB_SLEEP" for e in events)
 
 
+
+def test_evidence_selection_prefers_sharpest_recent_frame_and_expires_old_frames():
+    worker_cls = engine.AIWorker
+    candidates = [
+        {"stamp": 9.2, "quality": 400.0, "frame": "expired-sharp", "track": "old"},
+        {"stamp": 9.7, "quality": 80.0, "frame": "recent-soft", "track": "soft"},
+        {"stamp": 9.9, "quality": 140.0, "frame": "recent-sharp", "track": "sharp"},
+    ]
+    best = worker_cls._best_evidence_candidate(candidates, now=10.0, window_seconds=1.0)
+    assert best is not None
+    assert best["frame"] == "recent-sharp"
+
+
+def test_evidence_quality_prefers_in_focus_face_region():
+    import cv2
+    import numpy as np
+
+    class FaceTrack:
+        face = (10, 10, 60, 60)
+        visible = True
+        missed = 0
+        face_feature_current = True
+
+    sharp = np.zeros((80, 80, 3), dtype=np.uint8)
+    for x in range(10, 70, 6):
+        cv2.line(sharp, (x, 10), (x, 69), (255, 255, 255), 2)
+    blurred = cv2.GaussianBlur(sharp, (17, 17), 0)
+    sharp_score = engine.AIWorker._evidence_frame_quality(sharp, FaceTrack())
+    blur_score = engine.AIWorker._evidence_frame_quality(blurred, FaceTrack())
+    assert sharp_score > blur_score
+
 def test_reset_clears_track_temporal_state():
     be = BehaviorEngine()
     tr = Track(head_yaw_deg=-50.0)
