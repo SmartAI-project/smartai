@@ -158,6 +158,54 @@ def test_initial_lock_never_uses_a_retained_embedding_without_a_current_face():
     assert identity.lock([stale], frame_size=(640, 480)) == {}
 
 
+
+
+def test_new_face_id_waits_for_three_consistent_fresh_frames():
+    roster = [{
+        "id": 31, "ready": True, "student_code": "C031",
+        "full_name": "Nguyễn Hữu Tĩnh", "face_embedding": [1.0, 0.0, 0.0],
+    }]
+    track = engine.PersonTrack(31, _detection(), now=100.0)
+    track.update(_detection(), now=100.2)
+    identity = engine.IdentityLock()
+    identity.set_server_roster(roster)
+    label = "C031 • Nguyễn Hữu Tĩnh"
+
+    first, _ = identity.resolve(track, frame_size=(640, 480))
+    assert first == "IDENTITY UNCERTAIN"
+
+    track.update(_detection(), now=100.4)
+    second, _ = identity.resolve(track, frame_size=(640, 480))
+    assert second == "IDENTITY UNCERTAIN"
+
+    track.update(_detection(), now=100.6)
+    third, _ = identity.resolve(track, frame_size=(640, 480))
+    assert third == label
+    assert identity.track_to_student.get(track.track_id) == label
+
+
+def test_inconsistent_face_match_resets_pending_identity_confirmation():
+    roster = [{
+        "id": 31, "ready": True, "student_code": "C031",
+        "full_name": "Nguyễn Hữu Tĩnh", "face_embedding": [1.0, 0.0, 0.0],
+    }]
+    track = engine.PersonTrack(32, _detection(), now=200.0)
+    track.update(_detection(), now=200.2)
+    identity = engine.IdentityLock()
+    identity.set_server_roster(roster)
+
+    assert identity.resolve(track, frame_size=(640, 480))[0] == "IDENTITY UNCERTAIN"
+    wrong = _detection(face_feature=(-1.0, 0.0, 0.0))
+    track.update(wrong, now=200.4)
+    assert identity.resolve(track, frame_size=(640, 480))[0] == "IDENTITY UNCERTAIN"
+
+    track.update(_detection(), now=200.6)
+    assert identity.resolve(track, frame_size=(640, 480))[0] == "IDENTITY UNCERTAIN"
+    track.update(_detection(), now=200.8)
+    assert identity.resolve(track, frame_size=(640, 480))[0] == "IDENTITY UNCERTAIN"
+    track.update(_detection(), now=201.0)
+    assert identity.resolve(track, frame_size=(640, 480))[0] == "C031 • Nguyễn Hữu Tĩnh"
+
 def test_tracker_keeps_short_disappearances_but_expires_after_six_seconds():
     tracker = engine.PersonTracker()
     det = _detection()
