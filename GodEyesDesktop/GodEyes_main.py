@@ -52,8 +52,8 @@ except ModuleNotFoundError:
     from server_client import ServerClient, ServerClientError
     from event_gates import event_dedupe_key
 
-CLIENT_VERSION = '0.15.0'
-UI_REFRESH_VERSION = 'v15-yolox-body-tracking-identity-lock'
+CLIENT_VERSION = '0.15.1-test'
+UI_REFRESH_VERSION = 'v15.1-unicode-temporal-face-id-best-evidence'
 # User configuration must survive PyInstaller one-file extraction, whose
 # temporary APP_DIR changes on every launch. Keep settings beside local history.
 SERVER_CONFIG_PATH = DATA_DIR / 'server_config.json'
