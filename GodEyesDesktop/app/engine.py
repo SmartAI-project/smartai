@@ -2671,6 +2671,8 @@ class AIWorker(QThread):
 
     def configure(self, session_id, mode, fps, board_side):
         with self._config_lock:
+            if self.session_id != session_id:
+                self._evidence_candidates.clear()
             self.session_id = session_id
             self.mode = str(mode)
             self.target_fps = max(1.0, min(8.0, float(fps)))
@@ -3036,6 +3038,17 @@ class AIWorker(QThread):
             self._emit_status(f'AI ONLINE • {visible_tracks} PERSON(S)', 1.5)
         self.tracks_ready.emit(payload)
 
+    @staticmethod
+    def _is_frame_fresh(last_frame_time, now=None, max_age=2.5):
+        """A frozen/stale input frame must never advance behavioral timers."""
+        try:
+            stamp = float(last_frame_time or 0.0)
+            current = time.time() if now is None else float(now)
+            age = current - stamp
+            return stamp > 0.0 and 0.0 <= age <= float(max_age)
+        except (TypeError, ValueError):
+            return False
+
     def run(self):
         self._stop_event.clear()
         self._emit_status('AI THREAD STARTED', 0.0)
@@ -3057,8 +3070,10 @@ class AIWorker(QThread):
                     self._emit_status('AI WAITING • no camera frame received', 1.5)
                     time.sleep(0.05)
                     continue
-                if last_frame_time and time.time() - last_frame_time > 2.5:
+                if not self._is_frame_fresh(last_frame_time):
                     self._emit_status('AI WAITING • camera frame is stale', 1.0)
+                    time.sleep(0.05)
+                    continue
                 try:
                     self._process_once(frame)
                 except Exception as exc:
