@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, wait
 import cv2
 import numpy as np
-from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QSize
+from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QSize, QRect
 from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QPainter, QColor, QPen, QFontMetrics
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QStackedWidget, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QDialogButtonBox, QMessageBox, QProgressBar, QListWidget, QListWidgetItem, QAbstractItemView, QLineEdit, QCheckBox, QAbstractButton, QScrollArea, QGridLayout, QSizePolicy
 # Use package-qualified imports when launched by run.py / PyInstaller,
@@ -5256,15 +5256,14 @@ class MainWindow(QMainWindow):
                 text=sid
             label_font=QFont('Segoe UI', 12 if min(W,H)<720 else 14, QFont.Weight.DemiBold)
             label_metrics=QFontMetrics(label_font)
-            max_label_w=max(1,W-x-4)
-            label_w=max(1,min(max_label_w,max(190,label_metrics.horizontalAdvance(text)+24)))
+            label_w=max(1,min(W-4,max(190,label_metrics.horizontalAdvance(text)+24)))
             label_h=max(38,label_metrics.height()+14)
             # Put label above box when there is room; otherwise place inside top.
             if y>=label_h+8:
                 top=y
             else:
                 top=min(H-4,y+label_h)
-            left=x
+            left=max(0,min(x,W-label_w-2))
             right=min(W-2,left+label_w)
             label_top=max(2,top-label_h)
             label_bottom=min(H-2,top)
