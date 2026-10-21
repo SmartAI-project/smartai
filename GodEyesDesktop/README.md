@@ -1,13 +1,17 @@
-# GodEyes Desktop — Classroom Vision and Identity Tracking v0.15.0
+# GodEyes Desktop — Classroom Vision and Identity Tracking v0.15.1 TEST
 
 GodEyes is a Windows desktop classroom-monitoring application. This source snapshot improves the temporal gating around head turns, mouth movement, head-down posture, and repeated nods while retaining the existing camera, Face ID, audio, and session flows.
 
-## What's new in v0.15.0
+## What's new in v0.15.1 test build
 
 - Detects sustained measured left/right head turns rather than alerting on a single frame.
 - Looks for repeated mouth-motion cues during a head turn and labels them as **possible talking while turned**.
 - Adds a relative head-pitch estimate from YuNet facial landmarks. Sleep/drowsiness cues need sustained measured pitch-down, stable visible tracking, and low hand/task motion; repeated measured nods can also produce a cue.
 - Uses per-track temporal confirmation and cooldowns to reduce duplicate/short-lived alerts.
+- Requires three consistent fresh-face matches among the last five frames before assigning a new tracked identity; a conflicting match resets that confirmation run.
+- Renders student names and evidence captions with Unicode-capable Segoe UI, elides overlong labels instead of clipping them, and keeps the canonical/packaged UI source files identical.
+- Selects the clearest recent frame for a confirmed event from a short same-track/same-identity window using face sharpness and exposure, instead of always capturing the trigger frame.
+- Pauses behavior-timer advancement when camera input is missing or older than 2.5 seconds, avoiding alerts from a frozen frame.
 - Unknown-identity events remain local-only; they are not written to a named student's record or synced to the Server.
 - Adds the official OpenCV Zoo YOLOX INT8 body/object detector as a CPU-only fallback when the optional Ultralytics model is unavailable, enabling tracking when the face is turned away or temporarily occluded.
 - Keeps the previously locked identity through a short track loss (bounded to 6 seconds); a fresh face embedding is required for a new Face ID match, and appearance re-identification is conservative rather than being treated as Face ID.
