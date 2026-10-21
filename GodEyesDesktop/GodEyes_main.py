@@ -37,7 +37,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 import cv2
 import numpy as np
 from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QSize
-from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QPainter, QColor, QPen
+from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QPainter, QColor, QPen, QFontMetrics
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QStackedWidget, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QDialogButtonBox, QMessageBox, QProgressBar, QListWidget, QListWidgetItem, QAbstractItemView, QLineEdit, QCheckBox, QAbstractButton, QScrollArea, QGridLayout, QSizePolicy
 # Use package-qualified imports when launched by run.py / PyInstaller,
 # with a local fallback for direct execution of app\main.py.
@@ -5195,6 +5195,7 @@ class MainWindow(QMainWindow):
     def _draw_overlay(self,frame):
         out=frame.copy()
         H,W=out.shape[:2]
+        unicode_labels = []
         for p in self.overlay_items:
             sid=str(p.get('student') or 'IDENTITY UNCERTAIN')
             reacquiring=bool(p.get('_identity_grace'))
@@ -5253,12 +5254,11 @@ class MainWindow(QMainWindow):
                 text = 'UNIDENTIFIED' if self.ui_language == 'en' else 'CHƯA XÁC ĐỊNH'
             else:
                 text=sid
-            font=cv2.FONT_HERSHEY_SIMPLEX
-            scale=0.70 if min(W,H)>=720 else 0.60
-            thickness=2
-            (tw,th),baseline=cv2.getTextSize(text,font,scale,thickness)
-            label_w=min(max(190,tw+24),max(190,W-x-6))
-            label_h=max(38,th+baseline+14)
+            label_font=QFont('Segoe UI', 12 if min(W,H)<720 else 14, QFont.Weight.DemiBold)
+            label_metrics=QFontMetrics(label_font)
+            max_label_w=max(1,W-x-4)
+            label_w=max(1,min(max_label_w,max(190,label_metrics.horizontalAdvance(text)+24)))
+            label_h=max(38,label_metrics.height()+14)
             # Put label above box when there is room; otherwise place inside top.
             if y>=label_h+8:
                 top=y
@@ -5268,9 +5268,8 @@ class MainWindow(QMainWindow):
             right=min(W-2,left+label_w)
             label_top=max(2,top-label_h)
             label_bottom=min(H-2,top)
-            cv2.rectangle(out,(left,label_top),(right,label_bottom),(248,251,255),-1)
-            cv2.rectangle(out,(left,label_top),(right,label_bottom),pen,2)
-            cv2.putText(out,text,(left+12,label_bottom-12),font,scale,pen,thickness,cv2.LINE_AA)
+            if right>left and label_bottom>label_top:
+                unicode_labels.append((QRect(left,label_top,right-left,label_bottom-label_top),text,tuple(pen),label_font))
 
             if not uncertain and not reacquiring:
                 # Keep secondary telemetry smaller so it does not compete with identity.
@@ -5280,6 +5279,30 @@ class MainWindow(QMainWindow):
                 meta=f'ID #{int(p.get("track_id") or 0)}   Yaw {yaw:+.0f}°   Mouth {mouth*100:.0f}%   Task {task*100:.0f}%'
                 meta_y=min(H-10,y+h+24)
                 cv2.putText(out,meta,(x+4,meta_y),cv2.FONT_HERSHEY_SIMPLEX,.46,(35,100,235),2,cv2.LINE_AA)
+
+        # Draw all identity labels in one Unicode-capable pass. OpenCV Hershey fonts
+        # cannot render Vietnamese diacritics, and long names must be elided to fit.
+        if unicode_labels:
+            rgb=cv2.cvtColor(out,cv2.COLOR_BGR2RGB)
+            qimg=QImage(rgb.data,int(W),int(H),int(rgb.strides[0]),QImage.Format.Format_RGB888).copy()
+            painter=QPainter(qimg)
+            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing,True)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
+            for rect,label_text,pen_bgr,label_font in unicode_labels:
+                painter.fillRect(rect,QColor(248,251,255))
+                painter.setPen(QPen(QColor(pen_bgr[2],pen_bgr[1],pen_bgr[0]),2))
+                painter.drawRect(rect.adjusted(1,1,-1,-1))
+                painter.setFont(label_font)
+                painter.setPen(QColor(pen_bgr[2],pen_bgr[1],pen_bgr[0]))
+                text_rect=rect.adjusted(12,1,-8,-1)
+                visible=QFontMetrics(label_font).elidedText(str(label_text),Qt.TextElideMode.ElideRight,max(1,text_rect.width()))
+                painter.drawText(text_rect,Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,visible)
+            painter.end()
+            rgb_image=qimg.convertToFormat(QImage.Format.Format_RGB888)
+            ptr=rgb_image.constBits()
+            raw=np.frombuffer(ptr,dtype=np.uint8,count=rgb_image.sizeInBytes())
+            rgb_array=raw.reshape(H,rgb_image.bytesPerLine())[:,:W*3].reshape(H,W,3).copy()
+            out=cv2.cvtColor(rgb_array,cv2.COLOR_RGB2BGR)
         return out
 
     # [AI-GENERATED / AI-ASSISTED CODE] Renders camera frames into the current UI page.
