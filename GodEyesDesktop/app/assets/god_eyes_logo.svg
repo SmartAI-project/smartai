@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="GodEyes eye logo">
-  <rect x="9" y="9" width="238" height="238" rx="52" fill="#0c1c3a" stroke="#3675e8" stroke-width="5"/>
-  <path d="M36 128 C59 101 88 83 128 80 C168 83 197 101 220 128 C197 155 168 173 128 176 C88 173 59 155 36 128 Z" fill="#f2f8ff"/>
-  <circle cx="128" cy="128" r="43" fill="#2178f6" stroke="#4fe0e2" stroke-width="6"/>
-  <circle cx="128" cy="128" r="27" fill="#091e45"/>
-  <circle cx="113" cy="111" r="7" fill="#fff"/>
-  <path d="M48 137 C76 161 99 174 128 176 C157 174 180 161 208 137" fill="none" stroke="#27dddb" stroke-width="4" stroke-linecap="round"/>
-</svg>

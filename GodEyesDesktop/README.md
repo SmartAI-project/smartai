@@ -2,7 +2,7 @@
 
 ## Latest test-build note
 
-The latest v0.15.1 test build includes the GodEyes brand mark in the sidebar, attendance dialog, window icon, and Windows executable icon. The release build fails if the SVG logo or generated .ico is missing instead of silently shipping the default icon. Previous build 14 includes the side-profile yaw fallback fix. When the profile detector clearly classifies a face as LEFT or RIGHT but YuNet landmarks collapse toward a near-zero yaw, the app now preserves the profile direction. The existing temporal confirmation and cooldown rules still apply to avoid one-frame alerts.
+The latest v0.15.1 test build uses the supplied GodEyes logo image in the sidebar, attendance dialog, and window icon. The sidebar logo has been reduced in size. The Windows executable icon is generated from that same logo image, and the release build fails if the logo or generated .ico is missing instead of shipping a default icon. Previous build 14 includes the side-profile yaw fallback fix. When the profile detector clearly classifies a face as LEFT or RIGHT but YuNet landmarks collapse toward a near-zero yaw, the app now preserves the profile direction. The existing temporal confirmation and cooldown rules still apply to avoid one-frame alerts.
 
 This is a test build. Validate using the intended camera angle and representative classroom conditions; the displayed angle is an estimate, and a turn alone is not proof of talking or distraction.
 
@@ -51,7 +51,7 @@ py -m pytest -q
 powershell -ExecutionPolicy Bypass -File .\build_godeyes.ps1
 ```
 
-The script generates and verifies the branded Windows icon, then downloads and verifies YuNet, SFace, and the OpenCV Zoo YOLOX INT8 ONNX detector, runs a model-load/CPU-forward smoke test, checks Python syntax, verifies the FFmpeg RTSP demuxer supplied by `imageio-ffmpeg`, then creates `dist\GodEyes.exe`. The ONNX models are fetched from the official OpenCV Zoo project at build time instead of being duplicated as large binary files in this repository.
+The script generates the Windows icon from `app\\assets\\god_eyes_logo.png`, verifies the branded icon, then downloads and verifies YuNet, SFace, and the OpenCV Zoo YOLOX INT8 ONNX detector, runs a model-load/CPU-forward smoke test, checks Python syntax, verifies the FFmpeg RTSP demuxer supplied by `imageio-ffmpeg`, then creates `dist\GodEyes.exe`. The ONNX models are fetched from the official OpenCV Zoo project at build time instead of being duplicated as large binary files in this repository.
 
 ## GitHub CI and public Windows release
 

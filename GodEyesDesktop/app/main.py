@@ -38,7 +38,6 @@ import cv2
 import numpy as np
 from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QSize, QRect
 from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QPainter, QColor, QPen, QFontMetrics
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QStackedWidget, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QDialogButtonBox, QMessageBox, QProgressBar, QListWidget, QListWidgetItem, QAbstractItemView, QLineEdit, QCheckBox, QAbstractButton, QScrollArea, QGridLayout, QSizePolicy
 # Use package-qualified imports when launched by run.py / PyInstaller,
 # with a local fallback for direct execution of app\main.py.
@@ -60,24 +59,18 @@ UI_REFRESH_VERSION = 'v15.1-unicode-temporal-face-id-best-evidence'
 SERVER_CONFIG_PATH = DATA_DIR / 'server_config.json'
 LEGACY_SERVER_CONFIG_PATH = APP_DIR / 'server_config.json'
 MODEL_DIR = APP_DIR / 'assets' / 'models'
-LOGO_PATH = APP_DIR / 'assets' / 'god_eyes_logo.svg'
+LOGO_PATH = APP_DIR / 'assets' / 'god_eyes_logo.png'
 
 
 def _godeyes_logo_pixmap(size: int = 256) -> QPixmap:
-    """Render the bundled SVG brand mark to a pixmap for UI and window icons."""
+    """Load the supplied GodEyes logo image and scale it for the current UI slot."""
     size = max(16, int(size))
-    pixmap = QPixmap(size, size)
-    pixmap.fill(Qt.GlobalColor.transparent)
     if not LOGO_PATH.is_file():
-        return pixmap
-    renderer = QSvgRenderer(str(LOGO_PATH))
-    if not renderer.isValid():
-        return pixmap
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-    renderer.render(painter)
-    painter.end()
-    return pixmap
+        return QPixmap(size, size)
+    source = QPixmap(str(LOGO_PATH))
+    if source.isNull():
+        return QPixmap(size, size)
+    return source.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
 
 # GODEYES_UI_V25_LINE_ICONS: consistent, restrained outline icon set.
@@ -1671,12 +1664,12 @@ class MainWindow(QMainWindow):
         self.logo_view = QLabel()
         self.logo_view.setObjectName('logo_image')
         self.logo_view.setAlignment(Qt.AlignCenter)
-        self.logo_view.setMinimumHeight(148)
-        self.logo_view.setMaximumHeight(170)
+        self.logo_view.setMinimumHeight(78)
+        self.logo_view.setMaximumHeight(90)
         if LOGO_PATH.exists():
-            logo = _godeyes_logo_pixmap(256)
+            logo = _godeyes_logo_pixmap(96)
             if not logo.isNull():
-                self.logo_view.setPixmap(logo.scaled(192,148,Qt.KeepAspectRatio,Qt.SmoothTransformation))
+                self.logo_view.setPixmap(logo.scaled(76,76,Qt.KeepAspectRatio,Qt.SmoothTransformation))
             else:
                 self.logo_view.setText('God Eyes')
         else:
@@ -1685,7 +1678,7 @@ class MainWindow(QMainWindow):
         brand=self._label('CLASSROOM INTELLIGENCE' if self.ui_language == 'en' else 'GIÁM SÁT LỚP HỌC THÔNG MINH','eyebrow')
         brand.setAlignment(Qt.AlignCenter)
         sl.addWidget(brand)
-        sl.addSpacing(18)
+        sl.addSpacing(8)
         self.nav=[]
         home_label = 'Overview' if self.ui_language == 'en' else 'Tổng quan'
         b=QPushButton(home_label)

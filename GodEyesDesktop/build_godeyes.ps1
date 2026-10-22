@@ -91,14 +91,14 @@ if ($Demuxers -notmatch '(?m)^\s*D\s+rtsp\s+') {
 }
 Write-Host "FFmpeg RTSP demuxer verified: $FfmpegExe" -ForegroundColor Green
 
-# A vector mark is versioned in source; generate a real Windows ICO for the executable.
-$LogoSvg = Join-Path $AppDir 'assets\god_eyes_logo.svg'
-if (-not (Test-Path $LogoSvg)) { throw "Required GodEyes logo asset is missing: $LogoSvg" }
+# Build the Windows ICO from the exact supplied GodEyes logo image.
+$LogoPng = Join-Path $AppDir 'assets\god_eyes_logo.png'
+if (-not (Test-Path $LogoPng)) { throw "Required GodEyes logo image is missing: $LogoPng" }
 $IconBuilder = Join-Path $Root 'scripts\generate_icon.py'
 if (-not (Test-Path $IconBuilder)) { throw "Icon generator is missing: $IconBuilder" }
 $Icon = Join-Path $AppDir 'assets\god_eyes.ico'
-Write-Host 'Generating the GodEyes Windows application icon from the brand mark...' -ForegroundColor Cyan
-& $PythonExe $IconBuilder --output $Icon
+Write-Host 'Generating the Windows icon from the supplied GodEyes logo...' -ForegroundColor Cyan
+& $PythonExe $IconBuilder --logo $LogoPng --output $Icon
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Icon) -or (Get-Item $Icon).Length -lt 1024) {
     throw 'GodEyes icon generation failed; refusing to publish an unbranded executable.'
 }

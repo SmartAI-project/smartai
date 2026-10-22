@@ -1,9 +1,10 @@
 # Changelog
 
-## v0.15.1 TEST — Branded build and release checks
+## v0.15.1 TEST — Supplied logo and compact sidebar
 
-- Add a versioned SVG brand mark to the Desktop sidebar, attendance dialog, and window icon.
-- Generate a multi-resolution Windows `.ico` during packaging and fail the build if the logo/icon is missing instead of shipping the default icon.
+- Replace the temporary generated brand mark with the provided GodEyes logo image for the Desktop sidebar, attendance dialog, and window icon.
+- Reduce the sidebar logo area to a more compact size.
+- Generate a multi-resolution Windows `.ico` from that same supplied logo image and fail the build if the image/icon is missing instead of shipping a default icon.
 - Add a static asset regression test and compile-check the icon generator in CI.
 - Keep the two canonical Desktop entry points identical; preserve Unicode-safe font selection, elided labels, sustained turn confirmation, and evidence-frame quality gates from the current v0.15.1 source.
 
