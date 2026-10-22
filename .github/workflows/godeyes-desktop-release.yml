@@ -25,7 +25,7 @@ jobs:
           cache: pip
           cache-dependency-path: GodEyesDesktop/requirements.txt
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip pytest numpy opencv-contrib-python
+        run: python -m pip install --upgrade pip pytest numpy opencv-contrib-python Pillow
       - name: Compile Python sources
         run: python -m py_compile GodEyes_main.py app/main.py app/engine.py app/db.py app/server_client.py app/event_gates.py scripts/download_models.py scripts/smoke_test_models.py scripts/generate_icon.py
       - name: Run regression tests

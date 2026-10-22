@@ -12,7 +12,8 @@ def build_icon(size: int = 512) -> Image.Image:
     scale = size / 256.0
 
     def box(x: float, y: float, w: float, h: float):
-        return tuple(round(n * scale) for n in (x, y, w, h))
+        # Pillow drawing primitives expect (left, top, right, bottom), not width/height.
+        return tuple(round(n * scale) for n in (x, y, x + w, y + h))
 
     draw.rounded_rectangle(box(9, 9, 238, 238), radius=round(52 * scale),
                            fill="#0c1c3a", outline="#3675e8", width=max(2, round(5 * scale)))
