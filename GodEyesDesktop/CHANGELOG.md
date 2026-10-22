@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.15.1 TEST — Branded build and release checks
+
+- Add a versioned SVG brand mark to the Desktop sidebar, attendance dialog, and window icon.
+- Generate a multi-resolution Windows `.ico` during packaging and fail the build if the logo/icon is missing instead of shipping the default icon.
+- Add a static asset regression test and compile-check the icon generator in CI.
+- Keep the two canonical Desktop entry points identical; preserve Unicode-safe font selection, elided labels, sustained turn confirmation, and evidence-frame quality gates from the current v0.15.1 source.
+
 ## v0.15.0 — Body tracking fallback and safer identity continuity
 
 - Add OpenCV Zoo YOLOX INT8 ONNX detection fallback on CPU when Ultralytics/Torch is not installed, detecting people even when their faces are not visible.

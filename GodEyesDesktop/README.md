@@ -2,7 +2,7 @@
 
 ## Latest test-build note
 
-Build 14 includes the side-profile yaw fallback fix. When the profile detector clearly classifies a face as LEFT or RIGHT but YuNet landmarks collapse toward a near-zero yaw, the app now preserves the profile direction. The existing temporal confirmation and cooldown rules still apply to avoid one-frame alerts.
+The latest v0.15.1 test build includes the GodEyes brand mark in the sidebar, attendance dialog, window icon, and Windows executable icon. The release build fails if the SVG logo or generated .ico is missing instead of silently shipping the default icon. Previous build 14 includes the side-profile yaw fallback fix. When the profile detector clearly classifies a face as LEFT or RIGHT but YuNet landmarks collapse toward a near-zero yaw, the app now preserves the profile direction. The existing temporal confirmation and cooldown rules still apply to avoid one-frame alerts.
 
 This is a test build. Validate using the intended camera angle and representative classroom conditions; the displayed angle is an estimate, and a turn alone is not proof of talking or distraction.
 
@@ -51,7 +51,7 @@ py -m pytest -q
 powershell -ExecutionPolicy Bypass -File .\build_godeyes.ps1
 ```
 
-The script downloads and verifies YuNet, SFace, and the OpenCV Zoo YOLOX INT8 ONNX detector, runs a model-load/CPU-forward smoke test, checks Python syntax, verifies the FFmpeg RTSP demuxer supplied by `imageio-ffmpeg`, then creates `dist\GodEyes.exe`. The ONNX models are fetched from the official OpenCV Zoo project at build time instead of being duplicated as large binary files in this repository.
+The script generates and verifies the branded Windows icon, then downloads and verifies YuNet, SFace, and the OpenCV Zoo YOLOX INT8 ONNX detector, runs a model-load/CPU-forward smoke test, checks Python syntax, verifies the FFmpeg RTSP demuxer supplied by `imageio-ffmpeg`, then creates `dist\GodEyes.exe`. The ONNX models are fetched from the official OpenCV Zoo project at build time instead of being duplicated as large binary files in this repository.
 
 ## GitHub CI and public Windows release
 
@@ -72,7 +72,7 @@ py run.py
 
 ```powershell
 py -m pytest -q
-py -m py_compile .\GodEyes_main.py .\app\main.py .\app\engine.py .\app\db.py .\app\server_client.py .\app\event_gates.py .\scripts\download_models.py .\scripts\smoke_test_models.py
+py -m py_compile .\GodEyes_main.py .\app\main.py .\app\engine.py .\app\db.py .\app\server_client.py .\app\event_gates.py .\scripts\download_models.py .\scripts\smoke_test_models.py .\scripts\generate_icon.py
 ```
 
 The tests are deterministic regression tests for temporal rules and a synthetic pose projection. They do **not** replace field validation against representative classroom video or Windows camera/hardware smoke testing.

@@ -75,7 +75,7 @@ Write-Host 'Desktop entry-point sources match (SHA-256 verified).' -ForegroundCo
 # presence checks: on some PowerShell versions, pip's expected "Package(s) not
 # found" stderr is promoted to a terminating NativeCommandError.
 Write-Host 'Installing/checking PyInstaller and imageio-ffmpeg...' -ForegroundColor Cyan
-& $PythonExe -m pip install --upgrade pyinstaller imageio-ffmpeg
+& $PythonExe -m pip install --upgrade pyinstaller imageio-ffmpeg 'Pillow>=10,<13'
 if ($LASTEXITCODE -ne 0) {
     throw 'Failed to install PyInstaller or imageio-ffmpeg. Check your internet connection and Python/pip setup.'
 }
@@ -90,6 +90,19 @@ if ($Demuxers -notmatch '(?m)^\s*D\s+rtsp\s+') {
     throw "The FFmpeg bundled with this Python environment does not show RTSP input support: $FfmpegExe"
 }
 Write-Host "FFmpeg RTSP demuxer verified: $FfmpegExe" -ForegroundColor Green
+
+# A vector mark is versioned in source; generate a real Windows ICO for the executable.
+$LogoSvg = Join-Path $AppDir 'assets\god_eyes_logo.svg'
+if (-not (Test-Path $LogoSvg)) { throw "Required GodEyes logo asset is missing: $LogoSvg" }
+$IconBuilder = Join-Path $Root 'scripts\generate_icon.py'
+if (-not (Test-Path $IconBuilder)) { throw "Icon generator is missing: $IconBuilder" }
+$Icon = Join-Path $AppDir 'assets\god_eyes.ico'
+Write-Host 'Generating the GodEyes Windows application icon from the brand mark...' -ForegroundColor Cyan
+& $PythonExe $IconBuilder --output $Icon
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Icon) -or (Get-Item $Icon).Length -lt 1024) {
+    throw 'GodEyes icon generation failed; refusing to publish an unbranded executable.'
+}
+Write-Host "Application logo and Windows icon verified: $Icon" -ForegroundColor Green
 
 # Fetch all official ONNX models with fixed SHA-256 checks before packaging.
 # The model files are intentionally not stored as large binary assets in Git.
@@ -107,7 +120,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Model smoke test failed; build cancelled befor
 
 # Confirm the project's Python syntax before packaging.
 Write-Host 'Checking Python syntax...' -ForegroundColor Cyan
-& $PythonExe -m py_compile GodEyes_main.py app\main.py app\engine.py app\db.py app\server_client.py app\event_gates.py scripts\download_models.py
+& $PythonExe -m py_compile GodEyes_main.py app\main.py app\engine.py app\db.py app\server_client.py app\event_gates.py scripts\download_models.py scripts\generate_icon.py
 if ($LASTEXITCODE -ne 0) { throw 'Python syntax check failed; build cancelled.' }
 Write-Host 'Python syntax OK.' -ForegroundColor Green
 
@@ -131,6 +144,7 @@ $PyArgs = @(
     '--collect-all','imageio_ffmpeg',
     '--hidden-import','imageio_ffmpeg',
     '--hidden-import','sounddevice',
+    '--hidden-import','PySide6.QtSvg',
     '--exclude-module','ultralytics',
     '--exclude-module','torch',
     '--exclude-module','torchvision',
@@ -153,11 +167,8 @@ $PyArgs = @(
     '--exclude-module','unittest'
 )
 $Icon = Join-Path $AppDir 'assets\god_eyes.ico'
-if (Test-Path $Icon) {
-    $PyArgs += @('--icon', 'app\assets\god_eyes.ico')
-} else {
-    Write-Host 'Icon file not found; building with the default Windows icon.' -ForegroundColor Yellow
-}
+if (-not (Test-Path $Icon)) { throw 'Required GodEyes icon is missing; refusing to build with a default icon.' }
+$PyArgs += @('--icon', 'app\assets\god_eyes.ico')
 $PyArgs += 'run.py'
 
 Write-Host ''

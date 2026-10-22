@@ -38,6 +38,7 @@ import cv2
 import numpy as np
 from PySide6.QtCore import Qt, QTimer, QSettings, QThread, Signal, QSize, QRect
 from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QPainter, QColor, QPen, QFontMetrics
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QStackedWidget, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QDialogButtonBox, QMessageBox, QProgressBar, QListWidget, QListWidgetItem, QAbstractItemView, QLineEdit, QCheckBox, QAbstractButton, QScrollArea, QGridLayout, QSizePolicy
 # Use package-qualified imports when launched by run.py / PyInstaller,
 # with a local fallback for direct execution of app\main.py.
@@ -59,7 +60,24 @@ UI_REFRESH_VERSION = 'v15.1-unicode-temporal-face-id-best-evidence'
 SERVER_CONFIG_PATH = DATA_DIR / 'server_config.json'
 LEGACY_SERVER_CONFIG_PATH = APP_DIR / 'server_config.json'
 MODEL_DIR = APP_DIR / 'assets' / 'models'
-LOGO_PATH = APP_DIR / 'assets' / 'god_eyes_logo.png'
+LOGO_PATH = APP_DIR / 'assets' / 'god_eyes_logo.svg'
+
+
+def _godeyes_logo_pixmap(size: int = 256) -> QPixmap:
+    """Render the bundled SVG brand mark to a pixmap for UI and window icons."""
+    size = max(16, int(size))
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    if not LOGO_PATH.is_file():
+        return pixmap
+    renderer = QSvgRenderer(str(LOGO_PATH))
+    if not renderer.isValid():
+        return pixmap
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    renderer.render(painter)
+    painter.end()
+    return pixmap
 
 
 # GODEYES_UI_V25_LINE_ICONS: consistent, restrained outline icon set.
@@ -1036,7 +1054,7 @@ class AttendanceSelectionDialog(QDialog):
         card=QFrame(); card.setObjectName('dialogCard'); root=QVBoxLayout(card); root.setContentsMargins(24,22,24,22); root.setSpacing(12)
         header=QHBoxLayout(); icon=QLabel(); icon.setFixedSize(54,54); icon.setAlignment(Qt.AlignCenter)
         if LOGO_PATH.exists():
-            pix=QPixmap(str(LOGO_PATH))
+            pix=_godeyes_logo_pixmap(256)
             if not pix.isNull(): icon.setPixmap(pix.scaled(54,54,Qt.KeepAspectRatio,Qt.SmoothTransformation))
         header.addWidget(icon); hv=QVBoxLayout()
         title=QLabel(self._t('Attendance', 'Điểm danh buổi học')); title.setObjectName('title'); title.setStyleSheet('font-size:24px;'); hv.addWidget(title)
@@ -1478,7 +1496,7 @@ class MainWindow(QMainWindow):
         self.resize(1320, 820)
         self.setStyleSheet(STYLE)
         if LOGO_PATH.exists():
-            self.setWindowIcon(QIcon(str(LOGO_PATH)))
+            self.setWindowIcon(QIcon(_godeyes_logo_pixmap(256)))
         self.db = Database()
         _migrate_legacy_server_config()
         self.server = ServerClient.from_config(SERVER_CONFIG_PATH)
@@ -1656,7 +1674,7 @@ class MainWindow(QMainWindow):
         self.logo_view.setMinimumHeight(148)
         self.logo_view.setMaximumHeight(170)
         if LOGO_PATH.exists():
-            logo = QPixmap(str(LOGO_PATH))
+            logo = _godeyes_logo_pixmap(256)
             if not logo.isNull():
                 self.logo_view.setPixmap(logo.scaled(192,148,Qt.KeepAspectRatio,Qt.SmoothTransformation))
             else:
