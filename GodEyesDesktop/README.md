@@ -1,5 +1,12 @@
 # GodEyes Desktop — Classroom Vision and Identity Tracking v0.15.1 TEST
 
+## Latest test-build note
+
+Build 14 includes the side-profile yaw fallback fix. When the profile detector clearly classifies a face as LEFT or RIGHT but YuNet landmarks collapse toward a near-zero yaw, the app now preserves the profile direction. The existing temporal confirmation and cooldown rules still apply to avoid one-frame alerts.
+
+This is a test build. Validate using the intended camera angle and representative classroom conditions; the displayed angle is an estimate, and a turn alone is not proof of talking or distraction.
+
+
 GodEyes is a Windows desktop classroom-monitoring application. This source snapshot improves the temporal gating around head turns, mouth movement, head-down posture, and repeated nods while retaining the existing camera, Face ID, audio, and session flows.
 
 ## What's new in v0.15.1 test build
