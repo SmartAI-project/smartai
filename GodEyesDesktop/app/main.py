@@ -1664,20 +1664,17 @@ class MainWindow(QMainWindow):
         self.logo_view = QLabel()
         self.logo_view.setObjectName('logo_image')
         self.logo_view.setAlignment(Qt.AlignCenter)
-        self.logo_view.setMinimumHeight(78)
-        self.logo_view.setMaximumHeight(90)
+        self.logo_view.setMinimumHeight(108)
+        self.logo_view.setMaximumHeight(116)
         if LOGO_PATH.exists():
-            logo = _godeyes_logo_pixmap(96)
+            logo = _godeyes_logo_pixmap(144)
             if not logo.isNull():
-                self.logo_view.setPixmap(logo.scaled(76,76,Qt.KeepAspectRatio,Qt.SmoothTransformation))
+                self.logo_view.setPixmap(logo.scaled(112,112,Qt.KeepAspectRatio,Qt.SmoothTransformation))
             else:
                 self.logo_view.setText('God Eyes')
         else:
             self.logo_view.setText('God Eyes')
         sl.addWidget(self.logo_view)
-        brand=self._label('CLASSROOM INTELLIGENCE' if self.ui_language == 'en' else 'GIÁM SÁT LỚP HỌC THÔNG MINH','eyebrow')
-        brand.setAlignment(Qt.AlignCenter)
-        sl.addWidget(brand)
         sl.addSpacing(8)
         self.nav=[]
         home_label = 'Overview' if self.ui_language == 'en' else 'Tổng quan'
