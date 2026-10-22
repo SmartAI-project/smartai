@@ -102,6 +102,27 @@ def test_sustained_measured_head_turn_triggers_once_and_cools_down():
     assert not any(e[0] == "HEAD_TURN_LEFT" for e in later)
 
 
+def test_moderate_sustained_head_turn_triggers_faster():
+    be = BehaviorEngine()
+    # A three-quarter turn may produce a smaller 2-D yaw than a full profile.
+    tr = Track(head_yaw_deg=-30.0)
+    events = _run(be, tr, [150.0 + i * 0.25 for i in range(9)])
+    turns = [e for e in events if e[0] == "HEAD_TURN_LEFT"]
+    assert len(turns) == 1
+
+
+def test_single_frame_yaw_dip_does_not_reset_a_real_turn():
+    be = BehaviorEngine()
+    tr = Track(head_yaw_deg=-31.0)
+    events = []
+    for i in range(16):
+        # One imperfect landmark sample should be bridged; multiple missing
+        # samples still reset the state after the short grace window.
+        tr.head_yaw_deg = -23.0 if i == 4 else -31.0
+        events.extend(be.evaluate("TRACK:7", tr, now=170.0 + i * 0.15))
+    assert any(e[0] == "HEAD_TURN_LEFT" for e in events)
+
+
 def test_unmeasured_yaw_never_triggers_turn():
     be = BehaviorEngine()
     tr = Track(head_yaw_deg=55.0, head_yaw_measured=False)

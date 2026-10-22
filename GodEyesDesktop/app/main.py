@@ -121,9 +121,8 @@ def _godeyes_line_icon(kind: str, size: int = 20, color: str = '#1678f8') -> QPi
     return pixmap
 
 # Stable AI inference rate used by Scan and Monitor.
-# This preserves the previous Balanced/default runtime setting (6 FPS)
-# without depending on a Settings-page widget that may not exist.
-DEFAULT_AI_FPS = 6.0
+# 8 FPS improves responsiveness for short poses without forcing inference at camera capture FPS.
+DEFAULT_AI_FPS = 8.0
 
 
 def _normalize_camera_source(value):
@@ -1763,8 +1762,8 @@ class MainWindow(QMainWindow):
         """Overview page styled to closely match the GodEyes UI reference."""
         w = QWidget()
         l = QVBoxLayout(w)
-        l.setContentsMargins(22, 18, 22, 22)
-        l.setSpacing(11)
+        l.setContentsMargins(16, 12, 16, 14)
+        l.setSpacing(8)
         en = self.ui_language == 'en'
 
         # Header with compact brand icon and a small date/time card.
@@ -1818,14 +1817,14 @@ class MainWindow(QMainWindow):
         # 1. Class picker and compact select-all controls.
         class_card = self._card()
         class_layout = QVBoxLayout(class_card)
-        class_layout.setContentsMargins(15, 12, 15, 12)
-        class_layout.setSpacing(7)
+        class_layout.setContentsMargins(12, 8, 12, 8)
+        class_layout.setSpacing(5)
         class_layout.addWidget(self._label('1. Choose class' if en else '1. Chọn lớp học', 'section'))
         class_row = QHBoxLayout()
         class_row.setContentsMargins(0, 0, 0, 0)
         class_row.setSpacing(8)
         self.class_combo = QComboBox()
-        self.class_combo.setMinimumHeight(38)
+        self.class_combo.setMinimumHeight(34)
         self.class_combo.setMinimumWidth(260)
         self.class_combo.setMaximumWidth(330)
         self.class_combo.currentIndexChanged.connect(self._class_changed)
@@ -1835,18 +1834,18 @@ class MainWindow(QMainWindow):
             'Choose a class to load students.' if en else 'Chọn lớp để tải danh sách học sinh.', 'muted')
         self.class_info.setWordWrap(True)
         self.class_info.setMaximumWidth(265)
-        class_row.addWidget(self.class_info, 0)
+        class_row.addWidget(self.class_info, 1)
 
         self.overview_select_all_button = QPushButton('☑  Select all' if en else '☑  Chọn tất cả')
         self.overview_select_all_button.setObjectName('minorAction')
-        self.overview_select_all_button.setFixedSize(112, 36)
+        self.overview_select_all_button.setFixedSize(108, 32)
         self.overview_select_all_button.clicked.connect(lambda: self._set_all_overview_students(True))
         self.overview_select_all_button.setVisible(False)
         class_row.addWidget(self.overview_select_all_button, 0)
 
         self.overview_clear_all_button = QPushButton('☐  Clear all' if en else '☐  Bỏ chọn tất cả')
         self.overview_clear_all_button.setObjectName('minorAction')
-        self.overview_clear_all_button.setFixedSize(124, 36)
+        self.overview_clear_all_button.setFixedSize(118, 32)
         self.overview_clear_all_button.clicked.connect(lambda: self._set_all_overview_students(False))
         self.overview_clear_all_button.setVisible(False)
         class_row.addWidget(self.overview_clear_all_button, 0)
@@ -1857,8 +1856,8 @@ class MainWindow(QMainWindow):
         # 2. Attendance: use the real roster, not demonstration/fake students.
         attendance_card = self._card()
         attendance_layout = QVBoxLayout(attendance_card)
-        attendance_layout.setContentsMargins(15, 12, 15, 12)
-        attendance_layout.setSpacing(7)
+        attendance_layout.setContentsMargins(12, 8, 12, 8)
+        attendance_layout.setSpacing(5)
 
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(0, 0, 0, 0)
@@ -1867,15 +1866,15 @@ class MainWindow(QMainWindow):
         self.overview_student_search = QLineEdit()
         self.overview_student_search.setPlaceholderText('Search students…' if en else 'Tìm kiếm học sinh…')
         self.overview_student_search.setClearButtonEnabled(True)
-        self.overview_student_search.setFixedSize(215, 36)
+        self.overview_student_search.setFixedSize(200, 32)
         self.overview_student_search.textChanged.connect(self._filter_overview_student_cards)
         self.overview_student_search.setVisible(False)
         toolbar.addWidget(self.overview_student_search, 0)
         attendance_layout.addLayout(toolbar)
 
         attendance_hint = self._label(
-            'Only selected students are included in face matching and session records.' if en else
-            'Chỉ học sinh được chọn mới được đối chiếu khuôn mặt và ghi nhận dữ liệu trong buổi quét.', 'muted')
+            'Only selected students are scanned and recorded.' if en else
+            'Chỉ học sinh đã chọn được quét và ghi nhận.', 'muted')
         attendance_hint.setWordWrap(True)
         attendance_layout.addWidget(attendance_hint)
 
@@ -1885,11 +1884,11 @@ class MainWindow(QMainWindow):
         self.overview_attendance_summary = self._label(
             'Attendance has not been completed.' if en else 'Chưa điểm danh cho buổi quét này.', 'pill')
         self.overview_attendance_summary.setWordWrap(True)
-        self.overview_attendance_summary.setMinimumHeight(36)
+        self.overview_attendance_summary.setMinimumHeight(32)
         controls_row.addWidget(self.overview_attendance_summary, 1)
         self.attendance_prepare_button = QPushButton('ATTENDANCE' if en else 'ĐIỂM DANH')
         self.attendance_prepare_button.setObjectName('minorAction')
-        self.attendance_prepare_button.setFixedSize(158, 38)
+        self.attendance_prepare_button.setFixedSize(142, 34)
         self.attendance_prepare_button.clicked.connect(self._prepare_attendance_from_overview)
         controls_row.addWidget(self.attendance_prepare_button, 0)
         attendance_layout.addLayout(controls_row)
@@ -1898,14 +1897,14 @@ class MainWindow(QMainWindow):
             'Choose a class, then mark attendance to load students.' if en else
             'Chọn lớp rồi bấm Điểm danh để tải danh sách học sinh.', 'emptyState')
         self.overview_students_placeholder.setAlignment(Qt.AlignCenter)
-        self.overview_students_placeholder.setMinimumHeight(56)
+        self.overview_students_placeholder.setMinimumHeight(44)
         attendance_layout.addWidget(self.overview_students_placeholder)
 
         self.overview_students_host = QWidget()
         self.overview_students_grid = QGridLayout(self.overview_students_host)
         self.overview_students_grid.setContentsMargins(0, 0, 0, 0)
-        self.overview_students_grid.setHorizontalSpacing(8)
-        self.overview_students_grid.setVerticalSpacing(8)
+        self.overview_students_grid.setHorizontalSpacing(6)
+        self.overview_students_grid.setVerticalSpacing(6)
         for col in range(6):
             self.overview_students_grid.setColumnStretch(col, 1)
         self.overview_students_host.setVisible(False)
@@ -1917,13 +1916,13 @@ class MainWindow(QMainWindow):
         # 3. Duration presets on the left; mandatory stop notice on the right.
         duration_card = self._card()
         duration_row = QHBoxLayout(duration_card)
-        duration_row.setContentsMargins(14, 12, 14, 12)
-        duration_row.setSpacing(11)
+        duration_row.setContentsMargins(12, 8, 12, 8)
+        duration_row.setSpacing(8)
 
         duration_controls = QWidget()
         duration_layout = QVBoxLayout(duration_controls)
         duration_layout.setContentsMargins(0, 0, 0, 0)
-        duration_layout.setSpacing(7)
+        duration_layout.setSpacing(5)
         duration_layout.addWidget(self._label('3. Scan duration' if en else '3. Thời gian quét', 'section'))
 
         self.scan_duration_combo = QComboBox()
@@ -1955,7 +1954,7 @@ class MainWindow(QMainWindow):
             button = QPushButton(label)
             button.setObjectName('durationPreset')
             button.setCheckable(True)
-            button.setFixedSize(76 if i < 4 else 92, 36)
+            button.setFixedSize(72 if i < 4 else 86, 32)
             button.setToolTip(('Set scan duration' if en else 'Chọn thời lượng quét') + f': {label}')
             button.clicked.connect(lambda checked=False, index=i: self._choose_scan_duration_preset(index))
             presets_row.addWidget(button, 0)
@@ -1968,11 +1967,11 @@ class MainWindow(QMainWindow):
         custom_row.setContentsMargins(0, 0, 0, 0)
         custom_row.setSpacing(7)
         self.custom_duration_checkbox = QCheckBox('Custom' if en else 'Tùy chỉnh')
-        self.custom_duration_checkbox.setFixedWidth(92)
+        self.custom_duration_checkbox.setFixedWidth(84)
         self.custom_duration_checkbox.toggled.connect(self._custom_duration_option_toggled)
         custom_row.addWidget(self.custom_duration_checkbox, 0)
         self.custom_scan_minutes = QLineEdit(str(max(1, min(180, self.session_duration_seconds // 60))))
-        self.custom_scan_minutes.setFixedSize(78, 34)
+        self.custom_scan_minutes.setFixedSize(72, 30)
         self.custom_scan_minutes.setPlaceholderText('1–180')
         self.custom_scan_minutes.textChanged.connect(self._on_custom_scan_minutes_changed)
         self.custom_scan_minutes.textChanged.connect(self._update_overview_auto_stop_caption)
@@ -1985,25 +1984,25 @@ class MainWindow(QMainWindow):
 
         force_stop = QFrame()
         force_stop.setObjectName('forceStopNotice')
-        force_stop.setMinimumWidth(300)
+        force_stop.setMinimumWidth(280)
         stop_row = QHBoxLayout(force_stop)
-        stop_row.setContentsMargins(12, 11, 12, 11)
+        stop_row.setContentsMargins(10, 8, 10, 8)
         stop_row.setSpacing(8)
         warning_icon = QLabel('!')
         warning_icon.setAlignment(Qt.AlignCenter)
-        warning_icon.setFixedSize(30, 30)
-        warning_icon.setStyleSheet('background:#ff5967;color:white;border-radius:15px;font-size:18px;font-weight:900;')
+        warning_icon.setFixedSize(26, 26)
+        warning_icon.setStyleSheet('background:#ff5967;color:white;border-radius:13px;font-size:16px;font-weight:900;')
         stop_row.addWidget(warning_icon, 0, Qt.AlignTop)
         stop_texts = QWidget()
         stop_text_layout = QVBoxLayout(stop_texts)
         stop_text_layout.setContentsMargins(0, 0, 0, 0)
-        stop_text_layout.setSpacing(3)
+        stop_text_layout.setSpacing(2)
         stop_title = self._label('Mandatory automatic stop' if en else 'Tự động dừng (Bắt buộc)', 'section')
         stop_title.setStyleSheet('color:#d73543;font-weight:900;background:transparent;')
         stop_text_layout.addWidget(stop_title)
         stop_description = self._label(
-            'When the time expires, scanning stops immediately, whatever state the app is in.' if en else
-            'Hết giờ, hệ thống buộc dừng quét ngay, bất kể đang xử lý hay tạm dừng.', 'muted')
+            'When time expires, scanning stops immediately.' if en else
+            'Hết giờ, hệ thống dừng quét ngay.', 'muted')
         stop_description.setWordWrap(True)
         stop_text_layout.addWidget(stop_description)
         stop_row.addWidget(stop_texts, 1)
@@ -2017,7 +2016,7 @@ class MainWindow(QMainWindow):
         # 'Auto-stop after 45 min' caption is intentionally not shown here.
         self.overview_action_bar = QFrame()
         self.overview_action_bar.setObjectName('primaryActionBar')
-        self.overview_action_bar.setMaximumWidth(370)
+        self.overview_action_bar.setFixedSize(360, 54)
         action_layout = QHBoxLayout(self.overview_action_bar)
         action_layout.setContentsMargins(5, 5, 5, 5)
         action_layout.setSpacing(0)
@@ -2267,15 +2266,15 @@ class MainWindow(QMainWindow):
             selected = sid in self.attendance_selected_ids
             card = ClickableStudentCard()
             card.setObjectName('studentCardSelected' if selected else 'studentCard')
-            card.setFixedSize(164, 164)
+            card.setFixedSize(148, 148)
             card.setCursor(Qt.PointingHandCursor)
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(7, 7, 7, 8)
+            card_layout.setContentsMargins(6, 5, 6, 6)
             card_layout.setSpacing(4)
             checkbox_row = QHBoxLayout()
             checkbox_row.setContentsMargins(0, 0, 0, 0)
             check = StudentSelectionCheckBox()
-            check.setFixedSize(22, 22)
+            check.setFixedSize(18, 18)
             check.setChecked(selected)
             check.setToolTip('Include this student in scanning' if self.ui_language == 'en' else 'Đưa học sinh này vào lượt quét')
             checkbox_row.addWidget(check, 0, Qt.AlignLeft)
@@ -2283,7 +2282,7 @@ class MainWindow(QMainWindow):
             card_layout.addLayout(checkbox_row)
             avatar = QLabel()
             avatar.setObjectName('student_avatar')
-            avatar.setFixedSize(82, 82)
+            avatar.setFixedSize(70, 70)
             avatar.setAlignment(Qt.AlignCenter)
             avatar.setAttribute(Qt.WA_TransparentForMouseEvents, True)
             avatar.setWordWrap(True)
@@ -2292,6 +2291,7 @@ class MainWindow(QMainWindow):
                               ('Đã có Face ID' if ready else 'Chưa có Face ID'))
             self._set_student_avatar(avatar, record, sid, no_silhouette=True)
             avatar_row = QHBoxLayout()
+            avatar_row.setContentsMargins(0, 0, 0, 0)
             avatar_row.addStretch(1)
             avatar_row.addWidget(avatar)
             avatar_row.addStretch(1)
@@ -2302,7 +2302,7 @@ class MainWindow(QMainWindow):
             name_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
             name_label.setToolTip(f'{code} • {name}' if code else name)
             name_label.setStyleSheet('font-weight:800;background:transparent;color:#173555;')
-            name_label.setMaximumHeight(32)
+            name_label.setMaximumHeight(28)
             name_label.setStyleSheet('font-size:11px;font-weight:800;background:transparent;color:#173555;')
             card_layout.addWidget(name_label)
             # Status is preserved in the tooltip and summary to keep cards compact
@@ -3625,7 +3625,7 @@ class MainWindow(QMainWindow):
                 self.attendance_prepare_button.setText('ATTENDANCE' if self.ui_language == 'en' else 'ĐIỂM DANH')
         item=next((x for x in self.server_classes if int(x.get('id',0))==self.server_selected_class_id), None)
         if item:
-            self.class_info.setText((f"{item.get('student_count',0)} students • select the students to scan below" if self.ui_language == 'en' else f"{item.get('student_count',0)} học sinh • chọn học sinh cần quét bên dưới"))
+            self.class_info.setText((f"{item.get('student_count',0)} students • select below" if self.ui_language == 'en' else f"{item.get('student_count',0)} học sinh • chọn bên dưới"))
             # The reference UI displays student cards immediately after class selection.
             # This only loads the roster and never starts a scan automatically.
             if (self.current_session is None and getattr(self.server, 'connected', False)

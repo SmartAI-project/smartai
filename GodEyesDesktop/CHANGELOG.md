@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.15.1 TEST — Compact overview and more responsive head-turn detection
+
+- Tighten Overview card spacing, input/button heights and student tiles; prevent the Start Scan bar from stretching vertically.
+- Increase default AI inference cadence from 6 FPS to 8 FPS.
+- Lower the YuNet face confidence threshold from 0.65 to 0.55 and improve side-profile Haar detection for partially turned faces.
+- Detect sustained left/right turns from about 28° after 1.6 seconds, using four consistent samples. Brief landmark jitter is tolerated, while temporal confirmation and per-event cooldown remain in place.
+- Add regression tests for moderate-angle turns, short-turn rejection and one-frame pose jitter. Real-camera validation is still required for performance and false-positive assessment.
+
 ## v0.15.1 TEST — Supplied logo and compact sidebar
 
 - Replace the temporary generated brand mark with the provided GodEyes logo image for the Desktop sidebar, attendance dialog, and window icon.

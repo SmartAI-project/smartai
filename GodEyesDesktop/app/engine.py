@@ -1520,7 +1520,7 @@ class SmartVision:
                 continue
             try:
                 if hasattr(cv2, 'FaceDetectorYN') and yunet_path.stat().st_size > 100000:
-                    self.face_detector = cv2.FaceDetectorYN.create(str(yunet_path), '', (320, 320), 0.65, 0.30, 5000)
+                    self.face_detector = cv2.FaceDetectorYN.create(str(yunet_path), '', (320, 320), 0.55, 0.30, 5000)
                 if hasattr(cv2, 'FaceRecognizerSF') and sface_path.stat().st_size > 100000:
                     self.face_recognizer = cv2.FaceRecognizerSF.create(str(sface_path), '')
                 if self.face_detector is not None and self.face_recognizer is not None:
@@ -2000,8 +2000,8 @@ class SmartVision:
                 faces = self.profile.detectMultiScale(
                     roi_small,
                     scaleFactor=1.03,
-                    minNeighbors=3,
-                    minSize=(20, 20),
+                    minNeighbors=2,
+                    minSize=(18, 18),
                     flags=cv2.CASCADE_SCALE_IMAGE,
                 )
                 for fx, fy, fw, fh in faces:
@@ -2015,8 +2015,8 @@ class SmartVision:
                 faces = self.profile.detectMultiScale(
                     flipped,
                     scaleFactor=1.03,
-                    minNeighbors=3,
-                    minSize=(20, 20),
+                    minNeighbors=2,
+                    minSize=(18, 18),
                     flags=cv2.CASCADE_SCALE_IMAGE,
                 )
                 for fx, fy, fw, fh in faces:
@@ -2318,10 +2318,12 @@ class BehaviorEngine:
     locally only by the desktop UI and are never persisted as a student record.
     """
 
-    YAW_THRESHOLD_DEG = 40.0
-    YAW_CONFIRM_SECONDS = 2.8
+    # Detect a meaningful three-quarter turn earlier while still requiring repeated samples.
+    YAW_THRESHOLD_DEG = 28.0
+    YAW_CONFIRM_SECONDS = 1.6
     TURN_FACE_GAP_GRACE_SECONDS = 0.75
-    TURN_MIN_SAMPLES = 5
+    TURN_POSE_GAP_GRACE_SECONDS = 0.30
+    TURN_MIN_SAMPLES = 4
     TURN_MIN_QUALITY = 0.22
 
     EVENT_COOLDOWN = 12.0
@@ -2358,6 +2360,7 @@ class BehaviorEngine:
         if sid not in self.state:
             self.state[sid] = {
                 'turn_side': 0, 'turn_start': None, 'turn_samples': [],
+                'last_turn_cue_at': 0.0,
                 'last_turn_quality': 0.0, 'last_turn_person_score': 0.0,
                 'last_face_time': 0.0, 'last_face_seen_at': 0.0,
                 'face_missing_start': None, 'head_down_start': None,
@@ -2471,15 +2474,29 @@ class BehaviorEngine:
                 state['turn_latched'] = False
             state['turn_samples'].append((now, yaw, head_quality, person_score))
             state['turn_samples'] = self._trim_samples(state['turn_samples'], now, self.YAW_CONFIRM_SECONDS + 1.5)
+            state['last_turn_cue_at'] = now
             state['last_turn_quality'] = head_quality
             state['last_turn_person_score'] = person_score
             elapsed = now - float(state.get('turn_start') or now)
         else:
             direction = int(state.get('turn_side') or 0)
             face_gap = now - float(state.get('last_face_seen_at', 0.0) or 0.0)
-            keep_turn = bool(not face_valid and direction and state.get('turn_start') is not None
-                             and face_gap <= self.TURN_FACE_GAP_GRACE_SECONDS
-                             and int(getattr(track, 'missed', 0) or 0) <= 3)
+            last_turn_cue_at = float(state.get('last_turn_cue_at') or 0.0)
+            turn_cue_gap = now - last_turn_cue_at if last_turn_cue_at > 0.0 else float('inf')
+            track_ok = int(getattr(track, 'missed', 0) or 0) <= 3
+            if face_valid:
+                # A one-frame angle dip near the threshold should not reset a genuine turn.
+                keep_turn = bool(
+                    direction and state.get('turn_start') is not None and track_ok
+                    and turn_cue_gap <= self.TURN_POSE_GAP_GRACE_SECONDS
+                )
+            else:
+                # Brief face loss during a profile turn is tolerated, but stale tracks are not.
+                keep_turn = bool(
+                    direction and state.get('turn_start') is not None and track_ok
+                    and face_gap <= self.TURN_FACE_GAP_GRACE_SECONDS
+                    and turn_cue_gap <= self.TURN_FACE_GAP_GRACE_SECONDS
+                )
             if keep_turn:
                 elapsed = now - float(state.get('turn_start') or now)
             else:
@@ -2487,6 +2504,7 @@ class BehaviorEngine:
                 state['turn_start'] = None
                 state['turn_samples'] = []
                 state['turn_latched'] = False
+                state['last_turn_cue_at'] = 0.0
                 direction = 0
                 elapsed = 0.0
         turn_samples = state['turn_samples']

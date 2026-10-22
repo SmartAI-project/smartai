@@ -29,6 +29,16 @@ def test_desktop_entry_points_use_the_same_clean_large_logo():
     assert "QSvgRenderer" not in sources[0]
 
 
+def test_overview_layout_is_compact_at_common_desktop_sizes():
+    sources = [path.read_text(encoding="utf-8") for path in ENTRY_POINTS]
+    assert sources[0] == sources[1]
+    source = sources[0]
+    assert "l.setContentsMargins(16, 12, 16, 14)" in source
+    assert "self.overview_action_bar.setFixedSize(360, 54)" in source
+    assert "card.setFixedSize(148, 148)" in source
+    assert "avatar.setFixedSize(70, 70)" in source
+
+
 def test_windows_icon_is_generated_from_the_supplied_logo(tmp_path):
     spec = importlib.util.spec_from_file_location("godeyes_icon_builder_test", ICON_BUILDER)
     assert spec and spec.loader
