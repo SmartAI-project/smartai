@@ -14,16 +14,18 @@ def test_supplied_logo_image_is_present_and_readable():
     assert LOGO.is_file()
     with Image.open(LOGO) as image:
         assert image.format == "PNG"
-        assert image.width >= 64 and image.height >= 64
-        assert image.mode in {"RGBA", "RGB"}
+        assert image.width >= 100 and image.height >= 80
+        assert image.mode in {"RGBA", "RGB", "P"}
 
 
-def test_desktop_entry_points_use_the_same_supplied_logo_and_compact_sidebar():
+def test_desktop_entry_points_use_the_same_clean_large_logo():
     sources = [path.read_text(encoding="utf-8") for path in ENTRY_POINTS]
     assert sources[0] == sources[1]
     assert "god_eyes_logo.png" in sources[0]
-    assert "self.logo_view.setMinimumHeight(78)" in sources[0]
-    assert "logo.scaled(76,76" in sources[0]
+    assert "self.logo_view.setMinimumHeight(108)" in sources[0]
+    assert "self.logo_view.setMaximumHeight(116)" in sources[0]
+    assert "logo.scaled(112,112" in sources[0]
+    assert "brand=self._label('CLASSROOM INTELLIGENCE'" not in sources[0]
     assert "QSvgRenderer" not in sources[0]
 
 
