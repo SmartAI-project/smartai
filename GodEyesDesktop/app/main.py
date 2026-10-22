@@ -4803,11 +4803,11 @@ class MainWindow(QMainWindow):
         # local-only anonymous observations, so keep thresholds attainable while
         # still labelling them as suspicions rather than confirmed student records.
         thresholds = {
-            'HEAD_TURN_LEFT': 0.72,
-            'HEAD_TURN_RIGHT': 0.72,
-            'OB_TALKING': 0.76,
-            'OB_DISTRACT': 0.72,
-            'OB_SLEEP': 0.80,
+            'HEAD_TURN_LEFT': 0.82,
+            'HEAD_TURN_RIGHT': 0.82,
+            'OB_TALKING': 0.78,
+            'OB_DISTRACT': 0.85,
+            'OB_SLEEP': 0.90,
         }
         if confidence < thresholds.get(event_type, 0.90):
             return
@@ -4817,9 +4817,8 @@ class MainWindow(QMainWindow):
         track_key = match.group(1) if match else '?'
         now_mono = time.monotonic()
         cooldowns = getattr(self, '_anonymous_event_last_at', {})
-        dedupe_type = event_dedupe_key(event_type, text_detail)
-        key = (track_key, dedupe_type)
-        if now_mono - float(cooldowns.get(key, 0.0) or 0.0) < 15.0:
+        key = (track_key, event_type)
+        if now_mono - float(cooldowns.get(key, 0.0) or 0.0) < 30.0:
             return
         cooldowns[key] = now_mono
         self._anonymous_event_last_at = cooldowns
@@ -4852,16 +4851,54 @@ class MainWindow(QMainWindow):
             self.mon_events.setText(f'{self.event_count} events')
 
     def _event(self,sid,typ,conf,assessment,evidence):
-        # GOD EYES V14: unknown identities can trigger only local, non-persistent
-        # visual-cue alerts. Never attach them to a student or sync them to Server.
-        _unknown_label = str(sid or '').strip().upper()
-        if _unknown_label in {'IDENTITY UNCERTAIN', 'UNKNOWN', 'UNCERTAIN', 'CHƯA XÁC ĐỊNH DANH TÍNH'}:
+        # GOD EYES ANONYMOUS TURN ALERT V23.2
+        # Unidentified turn alerts are shown locally only. Never persist evidence,
+        # create a student record, or send an anonymous event to the Server.
+        _v232_label = str(sid or '').strip().upper()
+        if _v232_label in {'IDENTITY UNCERTAIN', 'UNKNOWN', 'UNCERTAIN', 'CHƯA XÁC ĐỊNH DANH TÍNH'}:
             if not getattr(self, 'current_session', None) or getattr(self, 'ai', None) is None:
                 return
-            _unknown_type = str(typ or 'OBSERVATION').strip().upper()
-            if _unknown_type not in {'HEAD_TURN_LEFT', 'HEAD_TURN_RIGHT', 'OB_TALKING', 'OB_DISTRACT', 'OB_SLEEP'}:
+            _v232_type = str(typ or 'OBSERVATION').strip().upper()
+            if _v232_type not in {'HEAD_TURN_LEFT', 'HEAD_TURN_RIGHT'}:
                 return
-            self._show_anonymous_behavior_event(_unknown_type, conf, assessment)
+            try:
+                _v232_conf = float(conf or 0.0)
+            except (TypeError, ValueError):
+                return
+            if 1.0 < _v232_conf <= 100.0:
+                _v232_conf /= 100.0
+            if not math.isfinite(_v232_conf) or not (0.82 <= _v232_conf <= 1.0):
+                return
+            _v232_assessment = str(assessment or '').strip()
+            _v232_track = _v232_assessment.split('•', 1)[0].strip() or 'Track chưa xác định'
+            _v232_now = time.monotonic()
+            _v232_seen = getattr(self, '_anonymous_turn_alert_last', None)
+            if not isinstance(_v232_seen, dict):
+                _v232_seen = {}
+                self._anonymous_turn_alert_last = _v232_seen
+            _v232_key = (_v232_track, _v232_type)
+            if _v232_now - float(_v232_seen.get(_v232_key, 0.0) or 0.0) < 30.0:
+                return
+            _v232_seen[_v232_key] = _v232_now
+            if not hasattr(self, 'live'):
+                return
+            try:
+                if self.live.count() and self.live.item(0).data(Qt.UserRole) == '__EMPTY_OBSERVATION__':
+                    self.live.takeItem(0)
+            except Exception:
+                pass
+            _v232_en = str(getattr(self, 'ui_language', 'vi') or 'vi').lower().startswith('en')
+            if _v232_en:
+                _v232_title = 'POSSIBLE DISTRACTION • HEAD TURN LEFT' if _v232_type == 'HEAD_TURN_LEFT' else 'POSSIBLE DISTRACTION • HEAD TURN RIGHT'
+                _v232_text = f'{_v232_title}\n{time.strftime("%H:%M:%S")} • {_v232_track}\nConfidence: {_v232_conf * 100:.0f}%\nLocal-only warning; identity is not confirmed.'
+            else:
+                _v232_title = 'NGHI VẤN MẤT TẬP TRUNG • QUAY ĐẦU TRÁI' if _v232_type == 'HEAD_TURN_LEFT' else 'NGHI VẤN MẤT TẬP TRUNG • QUAY ĐẦU PHẢI'
+                _v232_text = f'{_v232_title}\n{time.strftime("%H:%M:%S")} • {_v232_track}\nĐộ tin cậy: {_v232_conf * 100:.0f}%\nChỉ hiển thị cục bộ; danh tính chưa được xác nhận.'
+            _v232_item = QListWidgetItem(_v232_text)
+            _v232_item.setData(Qt.UserRole, '__LOCAL_ANONYMOUS_TURN__')
+            self.live.insertItem(0, _v232_item)
+            while self.live.count() > 12:
+                self.live.takeItem(12)
             return
 
 
@@ -4896,15 +4933,15 @@ class MainWindow(QMainWindow):
             return
 
         event_type = str(typ or 'OBSERVATION')
-        event_assessment = str(assessment or event_type)
         # Conservative event gates reduce low-confidence false alarms without changing
         # the face detector itself. Thresholds are applied before writing evidence or syncing.
         confidence_thresholds = {
-            'HEAD_TURN_LEFT': 0.72,
-            'HEAD_TURN_RIGHT': 0.72,
-            'OB_TALKING': 0.76,
-            'OB_DISTRACT': 0.72,
-            'OB_SLEEP': 0.80,
+            'HEAD_TURN_LEFT': 0.82,
+            'HEAD_TURN_RIGHT': 0.82,
+            # Thresholds align with the engine's bounded confidence; temporal gates remain the primary false-alert filter.
+            'OB_TALKING': 0.84,
+            'OB_DISTRACT': 0.74,
+            'OB_SLEEP': 0.70,
         }
         if confidence < confidence_thresholds.get(event_type, 0.92):
             return
@@ -4912,18 +4949,17 @@ class MainWindow(QMainWindow):
         now_mono = time.monotonic()
         last_visible = float(getattr(self, '_student_last_visible_at', {}).get(resolved_student_id, 0.0) or 0.0)
         # Don't log behaviour attributed to a student after their verified face has been missing.
-        max_face_age = 8.0 if event_type in ('HEAD_TURN_LEFT', 'HEAD_TURN_RIGHT') else 1.75
+        # Sleep may be reported after a verified head-down sequence followed by face loss; keep attribution only within that bounded interval.
+        max_face_age = 10.0 if event_type == 'OB_SLEEP' else (5.0 if event_type in ('HEAD_TURN_LEFT', 'HEAD_TURN_RIGHT') else 1.75)
         if last_visible <= 0.0 or now_mono - last_visible > max_face_age:
             return
-        # Debounce each cue independently. A prior HEAD_TURN alert must not
-        # suppress a new OB_TALKING cue describing talking while the head is turned.
-        event_key = (resolved_student_id, event_dedupe_key(event_type, event_assessment))
+        last_student_event = float(getattr(self, '_student_last_alert_at', {}).get(resolved_student_id, 0.0) or 0.0)
+        event_key = (resolved_student_id, event_type)
         last_same_event = float(getattr(self, '_event_last_saved_at', {}).get(event_key, 0.0) or 0.0)
-        if now_mono - last_same_event < 15.0:
+        if now_mono - last_student_event < 10.0 or now_mono - last_same_event < 30.0:
             return
-        self._student_last_alert_at[resolved_student_id] = now_mono
-        self._event_last_saved_at[event_key] = now_mono
         conf = confidence
+        event_assessment=str(assessment or event_type)
         titles={
             'HEAD_TURN_LEFT':'QUAY ĐẦU TRÁI',
             'HEAD_TURN_RIGHT':'QUAY ĐẦU PHẢI',
@@ -4936,7 +4972,17 @@ class MainWindow(QMainWindow):
         stamp=time.strftime('%H-%M-%S')
         path=EVIDENCE_DIR/self.current_session/f'{sid.replace(" ","_")}_{stamp}_{event_type}.jpg'
         path.parent.mkdir(parents=True,exist_ok=True)
-        cv2.imwrite(str(path),evidence,[cv2.IMWRITE_JPEG_QUALITY,90])
+        # Never create an event row or consume the cooldown without a valid evidence frame.
+        if not isinstance(evidence, np.ndarray) or evidence.size == 0:
+            return
+        try:
+            saved = cv2.imwrite(str(path),evidence,[cv2.IMWRITE_JPEG_QUALITY,90])
+        except Exception:
+            saved = False
+        if not saved:
+            return
+        self._student_last_alert_at[resolved_student_id] = now_mono
+        self._event_last_saved_at[event_key] = now_mono
         self.db.add_event(self.current_session,sid,event_type,conf,event_assessment,path)
         self.event_count+=1
         self.mon_events.setText(f'{self.event_count} events')
@@ -5254,21 +5300,30 @@ class MainWindow(QMainWindow):
                 text = 'UNIDENTIFIED' if self.ui_language == 'en' else 'CHƯA XÁC ĐỊNH'
             else:
                 text=sid
-            label_font=QFont('Segoe UI', 12 if min(W,H)<720 else 14, QFont.Weight.DemiBold)
-            label_metrics=QFontMetrics(label_font)
-            label_w=max(1,min(W-4,max(190,label_metrics.horizontalAdvance(text)+24)))
-            label_h=max(38,label_metrics.height()+14)
+            scale=0.70 if min(W,H)>=720 else 0.60
+            font_px=11 if min(W,H)<720 else 13
+            label_font=QFont('Segoe UI',font_px,QFont.Weight.DemiBold)
+            font_metrics=QFontMetrics(label_font)
+            # OpenCV Hershey metrics do not measure Vietnamese Unicode correctly.
+            # Size with the same Qt font used to paint the label, then elide safely.
+            tw=font_metrics.horizontalAdvance(str(text))
+            # Fit the label against the frame width, not the remaining space to the right
+            # of the face. This prevents a near-edge face from collapsing the label panel.
+            label_w=min(max(64,tw+24),max(1,W-4))
+            label_h=max(38,font_metrics.height()+14)
             # Put label above box when there is room; otherwise place inside top.
             if y>=label_h+8:
                 top=y
             else:
                 top=min(H-4,y+label_h)
-            left=max(0,min(x,W-label_w-2))
+            left=max(2,min(x,max(2,W-label_w-2)))
             right=min(W-2,left+label_w)
             label_top=max(2,top-label_h)
             label_bottom=min(H-2,top)
-            if right>left and label_bottom>label_top:
-                unicode_labels.append((QRect(left,label_top,right-left,label_bottom-label_top),text,tuple(pen),label_font))
+            # OpenCV's built-in Hershey fonts do not support Vietnamese diacritics.
+            # Keep boxes in OpenCV, but draw their labels with Qt/Segoe UI in one
+            # batch so student names render as Unicode without converting each box.
+            unicode_labels.append((left, label_top, right, label_bottom, str(text), tuple(pen), scale))
 
             if not uncertain and not reacquiring:
                 # Keep secondary telemetry smaller so it does not compete with identity.
@@ -5278,30 +5333,31 @@ class MainWindow(QMainWindow):
                 meta=f'ID #{int(p.get("track_id") or 0)}   Yaw {yaw:+.0f}°   Mouth {mouth*100:.0f}%   Task {task*100:.0f}%'
                 meta_y=min(H-10,y+h+24)
                 cv2.putText(out,meta,(x+4,meta_y),cv2.FONT_HERSHEY_SIMPLEX,.46,(35,100,235),2,cv2.LINE_AA)
-
-        # Draw all identity labels in one Unicode-capable pass. OpenCV Hershey fonts
-        # cannot render Vietnamese diacritics, and long names must be elided to fit.
         if unicode_labels:
-            rgb=cv2.cvtColor(out,cv2.COLOR_BGR2RGB)
-            qimg=QImage(rgb.data,int(W),int(H),int(rgb.strides[0]),QImage.Format.Format_RGB888).copy()
-            painter=QPainter(qimg)
-            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing,True)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
-            for rect,label_text,pen_bgr,label_font in unicode_labels:
-                painter.fillRect(rect,QColor(248,251,255))
-                painter.setPen(QPen(QColor(pen_bgr[2],pen_bgr[1],pen_bgr[0]),2))
-                painter.drawRect(rect.adjusted(1,1,-1,-1))
+            rgb = cv2.cvtColor(out, cv2.COLOR_BGR2RGB)
+            qimage = QImage(rgb.data, int(W), int(H), int(rgb.strides[0]), QImage.Format_RGB888).copy()
+            painter = QPainter(qimage)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+            for left, label_top, right, label_bottom, label_text, pen_bgr, scale in unicode_labels:
+                rect = QRect(int(left), int(label_top), max(1, int(right-left)), max(1, int(label_bottom-label_top)))
+                painter.fillRect(rect, QColor(248, 251, 255))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.setPen(QPen(QColor(int(pen_bgr[2]), int(pen_bgr[1]), int(pen_bgr[0])), 2))
+                painter.drawRoundedRect(rect, 4, 4)
+                font_px = 11 if min(W, H) < 720 else 13
+                label_font = QFont('Segoe UI', font_px, QFont.Weight.DemiBold)
                 painter.setFont(label_font)
-                painter.setPen(QColor(pen_bgr[2],pen_bgr[1],pen_bgr[0]))
-                text_rect=rect.adjusted(12,1,-8,-1)
-                visible=QFontMetrics(label_font).elidedText(str(label_text),Qt.TextElideMode.ElideRight,max(1,text_rect.width()))
-                painter.drawText(text_rect,Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,visible)
+                text_rect = QRect(int(left + 12), int(label_top), max(1, int(right-left-18)), max(1, int(label_bottom-label_top)))
+                # Elide oversized labels with an ellipsis instead of drawing text beyond the video frame.
+                visible_label = QFontMetrics(label_font).elidedText(str(label_text), Qt.TextElideMode.ElideRight, text_rect.width())
+                painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, visible_label)
             painter.end()
-            rgb_image=qimg.convertToFormat(QImage.Format.Format_RGB888)
-            ptr=rgb_image.constBits()
-            raw=np.frombuffer(ptr,dtype=np.uint8,count=rgb_image.sizeInBytes())
-            rgb_array=raw.reshape(H,rgb_image.bytesPerLine())[:,:W*3].reshape(H,W,3).copy()
-            out=cv2.cvtColor(rgb_array,cv2.COLOR_RGB2BGR)
+            qimage = qimage.convertToFormat(QImage.Format_RGB888)
+            raw = np.frombuffer(qimage.constBits(), dtype=np.uint8, count=qimage.sizeInBytes())
+            rendered = raw.reshape(qimage.height(), qimage.bytesPerLine())[:, :qimage.width()*3]
+            rendered = rendered.reshape(qimage.height(), qimage.width(), 3).copy()
+            out = cv2.cvtColor(rendered, cv2.COLOR_RGB2BGR)
         return out
 
     # [AI-GENERATED / AI-ASSISTED CODE] Renders camera frames into the current UI page.
