@@ -109,6 +109,40 @@ def test_unmeasured_yaw_never_triggers_turn():
     assert not any(e[0] in {"HEAD_TURN_LEFT", "HEAD_TURN_RIGHT"} for e in events)
 
 
+def test_profile_direction_is_preserved_when_yunet_yaw_collapses_to_zero():
+    yaw, measured = engine._resolve_head_yaw("RIGHT", 45.0, 0.0)
+    assert yaw >= 42.0
+    assert measured is True
+
+    yaw_left, measured_left = engine._resolve_head_yaw("LEFT", -45.0, 9.0)
+    assert yaw_left <= -42.0
+    assert measured_left is True
+
+
+def test_profile_direction_without_yunet_landmarks_is_a_measured_cue():
+    yaw, measured = engine._resolve_head_yaw("RIGHT", 45.0, None)
+    assert yaw == 45.0
+    assert measured is True
+
+    # A sustained profile pose should pass the existing temporal filter once.
+    be = BehaviorEngine()
+    tr = Track(head_yaw_deg=yaw, head_yaw_measured=measured)
+    events = _run(be, tr, [250.0 + i * 0.35 for i in range(13)])
+    turns = [event for event in events if event[0] == "HEAD_TURN_RIGHT"]
+    assert len(turns) == 1
+
+
+def test_frontal_landmark_yaw_is_still_used_and_unknown_yaw_stays_unmeasured():
+    yaw, measured = engine._resolve_head_yaw("FRONT", 0.0, 18.0)
+    assert yaw == 18.0
+    assert measured is True
+    yaw_unknown, unknown_measured = engine._resolve_head_yaw("UNKNOWN", 0.0, None)
+    assert yaw_unknown == 0.0
+    assert unknown_measured is False
+
+
+
+
 def test_repeated_mouth_motion_can_trigger_talking():
     be = BehaviorEngine()
     tr = Track()

@@ -43,6 +43,47 @@ class Detection:
     hand_motion: float = 0.0
     task_activity: float = 0.0
 
+def _resolve_head_yaw(side, fallback_yaw, landmark_yaw):
+    """Fuse face-profile classification and landmark yaw without erasing a clear turn.
+
+    Haar profile-face detection provides a coarse LEFT/RIGHT cue; YuNet landmarks
+    provide a finer estimate but can be inaccurate when one eye is occluded in a
+    side profile. A confirmed profile classification therefore supplies a measured
+    directional cue when landmarks are absent or implausibly close to frontal.
+    BehaviorEngine's temporal confirmation remains responsible for avoiding
+    one-frame false alerts.
+    """
+    normalized_side = str(side or "UNKNOWN").strip().upper()
+    try:
+        fallback = float(fallback_yaw or 0.0)
+        if not math.isfinite(fallback):
+            fallback = 0.0
+    except (TypeError, ValueError):
+        fallback = 0.0
+
+    try:
+        landmark = float(landmark_yaw) if landmark_yaw is not None else None
+        if landmark is not None and not math.isfinite(landmark):
+            landmark = None
+    except (TypeError, ValueError):
+        landmark = None
+
+    if normalized_side in {"LEFT", "RIGHT"}:
+        direction = -1.0 if normalized_side == "LEFT" else 1.0
+        # A profile classifier is already a strong categorical pose cue. If the
+        # landmarks disagree or return a weak near-frontal angle, do not suppress it.
+        magnitude = max(42.0, abs(landmark)) if landmark is not None else 45.0
+        magnitude = min(65.0, magnitude)
+        return direction * magnitude, True
+
+    if landmark is not None:
+        return max(-65.0, min(65.0, landmark)), True
+
+    # Without either valid landmarks or a clear profile classification, do not
+    # treat a coarse default yaw as a measured turn.
+    return fallback, False
+
+
 def _extract_ipv4_addresses(value: str):
     if not value:
         return []
@@ -2184,21 +2225,15 @@ class SmartVision:
                 face_conf = float(yunet_face[14]) if len(yunet_face) >= 15 else 0.65
                 yaw_deg = 0.0
 
-            # Prefer a per-frame landmark estimate over the fixed Haar profile label.
-            head_yaw_measured = False
+            # YuNet provides a useful magnitude for frontal/three-quarter poses, but
+            # its eye/nose landmarks may collapse toward 0 degrees in a true profile.
+            # Keep the independent Haar profile direction in that case. The behavior
+            # engine still requires a stable multi-second pose and several valid samples.
             landmark_yaw = (
                 self._estimate_yaw_from_yunet(yunet_face)
                 if yunet_face is not None else None
             )
-            if landmark_yaw is not None:
-                yaw_deg = float(landmark_yaw)
-                # Preserve the app's established LEFT/RIGHT sign convention when
-                # the profile detector has a clear direction; use landmarks for magnitude.
-                if abs(yaw_deg) >= 8.0 and side == 'LEFT':
-                    yaw_deg = -abs(yaw_deg)
-                elif abs(yaw_deg) >= 8.0 and side == 'RIGHT':
-                    yaw_deg = abs(yaw_deg)
-                head_yaw_measured = True
+            yaw_deg, head_yaw_measured = _resolve_head_yaw(side, yaw_deg, landmark_yaw)
 
             head_dir = 0.0
             head_pitch_deg = 0.0
